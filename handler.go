@@ -1,18 +1,17 @@
-package slog
+package logy
 
 import (
 	"io"
-	"os"
 	"sync"
 )
 
 type Handler interface {
-	Handle(record *Record) error
+	Handle(record Record) error
 	SetFormatter(formatter Formatter)
 	Formatter() Formatter
 	SetLevel(level Level)
 	Level() Level
-	IsLoggable(record *Record) bool
+	Enabled(Level) bool
 }
 
 type ConsoleHandler struct {
@@ -26,21 +25,27 @@ type ConsoleHandler struct {
 func NewConsoleHandler() *ConsoleHandler {
 	return &ConsoleHandler{
 		formatter: NewSimpleFormatter(),
-		writer:    os.Stderr,
+		writer:    io.Discard,
 		level:     LevelInfo,
 		mu:        sync.RWMutex{},
 	}
 }
 
-func (h *ConsoleHandler) Handle(record *Record) error {
-	if h.IsLoggable(record) {
-		msg := h.Formatter().Format(record)
-		msg = msg + "\n"
-		_, err := h.writer.Write([]byte(msg))
+func (h *ConsoleHandler) Handle(record Record) error {
+	h.mu.RLock()
+	if h.level < record.Level {
+		h.mu.RUnlock()
+		return nil
+	}
+	formatter := h.formatter
+	h.mu.RUnlock()
 
-		if err != nil {
-			return err
-		}
+	msg := formatter.Format(record)
+	msg = msg + "\n"
+	_, err := h.writer.Write([]byte(msg))
+
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -74,6 +79,9 @@ func (h *ConsoleHandler) Level() Level {
 	return h.level
 }
 
-func (h *ConsoleHandler) IsLoggable(record *Record) bool {
-	return record.Level >= h.Level()
+func (h *ConsoleHandler) Enabled(level Level) bool {
+	return false
+	defer h.mu.RUnlock()
+	h.mu.RLock()
+	return level >= h.level
 }

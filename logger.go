@@ -1,26 +1,35 @@
-package slog
+package logy
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"reflect"
+	"runtime"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 var (
-	rootLogger    = New("")
-	defaultLogger = rootLogger
+	rootLogger    = Named("")
+	defaultLogger atomic.Value
 
 	loggers = map[string]*Logger{}
 	mu      sync.RWMutex
 )
 
+func init() {
+	defaultLogger.Store(rootLogger)
+}
+
 type Logger struct {
+	name    string
 	level   Level
 	handler Handler
 
-	recordPool sync.Pool
-	mu         sync.RWMutex
+	mu sync.RWMutex
 }
 
 func SetDefault(logger *Logger) {
@@ -28,25 +37,28 @@ func SetDefault(logger *Logger) {
 		panic("logger cannot be nil")
 	}
 
-	defer mu.Unlock()
-	mu.Lock()
+	defaultLogger.Store(logger)
 
 	log.SetOutput(newWriter(logger))
 	log.SetFlags(0)
 }
 
 func Default() *Logger {
-	defer mu.Unlock()
-	mu.Lock()
-
-	return defaultLogger
+	return defaultLogger.Load().(*Logger)
 }
 
 func Of[T any]() *Logger {
-	return nil
+	typ := reflect.TypeOf((*T)(nil)).Elem()
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+
+	name := typ.Name()
+	pkg := strings.ReplaceAll(typ.PkgPath(), "/", ".")
+	return Named(fmt.Sprintf("%s.%s", pkg, name))
 }
 
-func New(name string) *Logger {
+func Named(name string) *Logger {
 	defer mu.Unlock()
 	mu.Lock()
 
@@ -55,16 +67,17 @@ func New(name string) *Logger {
 	}
 
 	logger := &Logger{
-		recordPool: sync.Pool{
-			New: func() any {
-				return &Record{}
-			},
-		},
-		level:   LevelInfo,
+		name:    name,
+		level:   LevelError,
 		handler: NewConsoleHandler(),
 	}
+
 	loggers[name] = logger
 	return logger
+}
+
+func New() *Logger {
+	return Named("")
 }
 
 func (l *Logger) SetLevel(level Level) {
@@ -79,120 +92,139 @@ func (l *Logger) IsLoggable(level Level) bool {
 	return level >= l.level
 }
 
-func (l *Logger) I(ctx context.Context, msg string, args ...string) {
-	l.logDepth(0, ctx, LevelInfo, msg, args...)
+func (l *Logger) I(ctx context.Context, msg string, args ...any) {
+	l.logDepth(1, ctx, LevelInfo, msg, args...)
 }
 
-func (l *Logger) E(ctx context.Context, err error, args ...string) {
-	l.logDepth(0, ctx, LevelError, err.Error(), args...)
+func (l *Logger) E(ctx context.Context, err error, args ...any) {
+	l.logDepth(1, ctx, LevelError, err.Error(), args...)
 }
 
-func (l *Logger) W(ctx context.Context, msg string, args ...string) {
-	l.logDepth(0, ctx, LevelWarn, msg, args...)
+func (l *Logger) W(ctx context.Context, msg string, args ...any) {
+	l.logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
-func (l *Logger) D(ctx context.Context, msg string, args ...string) {
-	l.logDepth(0, ctx, LevelDebug, msg, args...)
+func (l *Logger) D(ctx context.Context, msg string, args ...any) {
+	l.logDepth(1, ctx, LevelDebug, msg, args...)
 }
 
-func (l *Logger) A(ctx context.Context, level Level, msg string, attrs ...*Attr) {
-
+func (l *Logger) A(ctx context.Context, level Level, msg string, attrs ...Attribute) {
+	l.logAttrsDepth(1, ctx, level, msg, attrs...)
 }
 
-func (l *Logger) L(ctx context.Context, level Level, msg string, args ...string) {
-	l.logDepth(0, ctx, level, msg, args...)
+func (l *Logger) L(ctx context.Context, level Level, msg string, args ...any) {
+	l.logDepth(1, ctx, level, msg, args...)
 }
 
-func (l *Logger) Info(msg string, args ...string) {
-	l.logDepth(0, nil, LevelInfo, msg, args...)
+func (l *Logger) Info(msg string, args ...any) {
+	l.logDepth(1, nil, LevelInfo, msg, args...)
 }
 
-func (l *Logger) Error(err error, args ...string) {
-	l.logDepth(0, nil, LevelError, err.Error(), args...)
+func (l *Logger) Error(err error, args ...any) {
+	l.logDepth(1, nil, LevelError, err.Error(), args...)
 }
 
-func (l *Logger) Warn(msg string, args ...string) {
-	l.logDepth(0, nil, LevelWarn, msg, args...)
+func (l *Logger) Warn(msg string, args ...any) {
+	l.logDepth(1, nil, LevelWarn, msg, args...)
 }
 
-func (l *Logger) Debug(msg string, args ...string) {
-	l.logDepth(0, nil, LevelDebug, msg, args...)
+func (l *Logger) Debug(msg string, args ...any) {
+	l.logDepth(1, nil, LevelDebug, msg, args...)
 }
 
-func (l *Logger) Attrs(level Level, msg string, attrs ...*Attr) {
-	l.A(nil, level, msg, attrs...)
+func (l *Logger) Attrs(level Level, msg string, attrs ...Attribute) {
+	l.logAttrsDepth(1, nil, level, msg, attrs...)
 }
 
-func (l *Logger) Log(level Level, msg string, args ...string) {
-	l.logDepth(0, nil, level, msg, args...)
+func (l *Logger) Log(level Level, msg string, args ...any) {
+	l.logDepth(1, nil, level, msg, args...)
 }
 
-func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg string, args ...string) {
-	if !l.IsLoggable(level) {
+func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg string, args ...any) error {
+	/*if !l.handler.IsLoggable(level) {
 		return
+	}*/
+
+	record := l.makeRecord(depth, ctx, msg, level)
+	return l.handler.Handle(record)
+}
+
+func (l *Logger) logAttrsDepth(depth int, ctx context.Context, level Level, msg string, attrs ...Attribute) {
+	/*if !l.handler.IsLoggable(level) {
+		return
+	}*/
+
+	record := l.makeRecord(depth, ctx, msg, level)
+	_ = l.handler.Handle(record)
+}
+
+func (l *Logger) makeRecord(depth int, ctx context.Context, msg string, level Level) Record {
+	var pcs [1]uintptr
+	runtime.Callers(depth+3, pcs[:])
+
+	frames := runtime.CallersFrames(pcs[:1])
+	frame, _ := frames.Next()
+
+	return Record{
+		Time:       time.Now(),
+		Message:    msg,
+		Level:      level,
+		Context:    ctx,
+		LoggerName: l.name,
+		Caller: Caller{
+			Defined:  frame.PC != 0,
+			PC:       frame.PC,
+			File:     frame.File,
+			Line:     frame.Line,
+			Function: frame.Function,
+		},
 	}
-
-	record := l.recordPool.Get().(*Record)
-	record.Time = time.Now()
-	record.Level = level
-	record.Message = msg
-	record.Context = ctx
-	record.depth = 0
-	_ = l.logRecord(record)
 }
 
-func (l *Logger) logRecord(record *Record) error {
-	l.mu.Lock()
-	handler := l.handler
-	l.mu.Unlock()
-
-	return handler.Handle(record)
+func I(ctx context.Context, msg string, args ...any) {
+	Default().logDepth(1, ctx, LevelInfo, msg, args...)
 }
 
-func I(ctx context.Context, msg string, args ...string) {
-	Default().logDepth(0, ctx, LevelInfo, msg, args...)
+func E(ctx context.Context, err error, args ...any) {
+	Default().logDepth(1, ctx, LevelError, err.Error(), args...)
 }
 
-func E(ctx context.Context, err error, args ...string) {
-	Default().logDepth(0, ctx, LevelError, err.Error(), args...)
+func W(ctx context.Context, msg string, args ...any) {
+	Default().logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
-func W(ctx context.Context, msg string, args ...string) {
-	Default().logDepth(0, ctx, LevelWarn, msg, args...)
+func D(ctx context.Context, msg string, args ...any) {
+	Default().logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
-func D(ctx context.Context, msg string, args ...string) {
-	Default().logDepth(0, ctx, LevelWarn, msg, args...)
+func A(ctx context.Context, level Level, msg string, attrs ...Attribute) {
+	Default().logAttrsDepth(1, ctx, level, msg, attrs...)
 }
 
-func A(ctx context.Context, level Level, msg string, attrs ...*Attr) {
-
-}
-
-func L(ctx context.Context, level Level, msg string, args ...string) {
+func L(ctx context.Context, level Level, msg string, args ...any) {
 	Default().logDepth(0, ctx, level, msg, args...)
 }
 
-func Info(msg string, args ...string) {
-	Default().logDepth(0, nil, LevelInfo, msg, args...)
+func Info(msg string, args ...any) {
+	Default().logDepth(1, nil, LevelInfo, msg, args...)
 }
 
-func Error(err error, args ...string) {
-	Default().logDepth(0, nil, LevelError, err.Error(), args...)
+func Error(err error, args ...any) {
+	Default().logDepth(1, nil, LevelError, err.Error(), args...)
 }
 
-func Warn(msg string, args ...string) {
-	Default().logDepth(0, nil, LevelWarn, msg, args...)
+func Warn(msg string, args ...any) {
+	Default().logDepth(1, nil, LevelWarn, msg, args...)
 }
 
-func Debug(msg string, args ...string) {
-	Default().logDepth(0, nil, LevelWarn, msg, args...)
+func Debug(msg string, args ...any) {
+	Default().logDepth(1, nil, LevelWarn, msg, args...)
 }
 
-func Attrs(level Level, msg string, attrs ...*Attr) {
-
+func Attrs(level Level, msg string, attrs ...Attribute) {
+	Default().logAttrsDepth(1, nil, level, msg, attrs...)
 }
 
-func Log(level Level, msg string, args ...string) {
-	Default().logDepth(0, nil, level, msg, args...)
+func Log(level Level, msg string, args ...any) {
+	Default().logDepth(1, nil, level, msg, args...)
 }

@@ -1,8 +1,7 @@
-package slog
+package logy
 
 import (
 	"log"
-	"time"
 )
 
 type writer struct {
@@ -32,12 +31,5 @@ func (w *writer) Write(buf []byte) (n int, err error) {
 		buf = buf[:len(buf)-1]
 	}
 
-	record := w.logger.recordPool.Get().(*Record)
-	record.Time = time.Now()
-	record.Level = LevelInfo
-	record.Message = string(buf)
-	record.Context = nil
-	record.depth = depth
-
-	return origLen, w.logger.logRecord(record)
+	return origLen, w.logger.logDepth(depth, nil, LevelInfo, string(buf))
 }

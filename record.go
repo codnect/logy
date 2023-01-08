@@ -1,4 +1,4 @@
-package slog
+package logy
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 )
 
 type Record struct {
-	Time    time.Time
-	Level   Level
-	Message string
-	Context context.Context
-
-	depth int
+	Time       time.Time
+	Level      Level
+	Message    string
+	Context    context.Context
+	LoggerName string
+	Caller     Caller
 }
