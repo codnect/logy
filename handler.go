@@ -2,86 +2,95 @@ package logy
 
 import (
 	"io"
+	"os"
 	"sync"
+	"sync/atomic"
+)
+
+var (
+	handlers  = map[string]Handler{}
+	handlerMu sync.RWMutex
 )
 
 type Handler interface {
 	Handle(record Record) error
-	SetFormatter(formatter Formatter)
-	Formatter() Formatter
 	SetLevel(level Level)
 	Level() Level
-	Enabled(Level) bool
+	SetEnabled(enabled bool)
+	IsEnabled() bool
+	IsLoggable(record Record) bool
+}
+
+type ConfigurableHandler interface {
+	OnConfigure(properties ConfigProperties)
+}
+
+func RegisterHandler(name string, handler Handler) {
+	defer handlerMu.Unlock()
+	handlerMu.Lock()
+
+	handlers[name] = handler
 }
 
 type ConsoleHandler struct {
-	formatter Formatter
-	writer    io.Writer
-	level     Level
-
-	mu sync.RWMutex
+	writer  io.Writer
+	enabled atomic.Value
+	level   atomic.Value
+	format  string
+	color   bool
 }
 
 func NewConsoleHandler() *ConsoleHandler {
-	return &ConsoleHandler{
-		formatter: NewSimpleFormatter(),
-		writer:    io.Discard,
-		level:     LevelInfo,
-		mu:        sync.RWMutex{},
+	handler := &ConsoleHandler{
+		writer: os.Stderr,
 	}
+
+	handler.enabled.Store(true)
+	handler.level.Store(LevelDebug)
+	return handler
 }
 
 func (h *ConsoleHandler) Handle(record Record) error {
-	h.mu.RLock()
-	if h.level < record.Level {
-		h.mu.RUnlock()
-		return nil
-	}
-	formatter := h.formatter
-	h.mu.RUnlock()
-
-	msg := formatter.Format(record)
-	msg = msg + "\n"
-	_, err := h.writer.Write([]byte(msg))
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (h *ConsoleHandler) SetFormatter(formatter Formatter) {
-	if formatter == nil {
-		return
-	}
-
-	defer h.mu.Unlock()
-	h.mu.Lock()
-	h.formatter = formatter
-}
-
-func (h *ConsoleHandler) Formatter() Formatter {
-	defer h.mu.Unlock()
-	h.mu.Lock()
-	return h.formatter
-}
-
 func (h *ConsoleHandler) SetLevel(level Level) {
-	defer h.mu.Unlock()
-	h.mu.Lock()
-	h.level = level
+	h.level.Store(level)
 }
 
 func (h *ConsoleHandler) Level() Level {
-	defer h.mu.Unlock()
-	h.mu.Lock()
-	return h.level
+	return h.level.Load().(Level)
 }
 
-func (h *ConsoleHandler) Enabled(level Level) bool {
-	return false
-	defer h.mu.RUnlock()
-	h.mu.RLock()
-	return level >= h.level
+func (h *ConsoleHandler) SetEnabled(enabled bool) {
+	h.enabled.Store(enabled)
+}
+
+func (h *ConsoleHandler) IsEnabled() bool {
+	return h.enabled.Load().(bool)
+}
+
+func (h *ConsoleHandler) IsLoggable(record Record) bool {
+	if !h.IsEnabled() {
+		return false
+	}
+
+	return record.Level >= h.Level()
+}
+
+func (h *ConsoleHandler) onConfigure(config *ConsoleConfig) {
+	h.enabled.Store(config.Enabled)
+	h.level.Store(config.Level)
+
+	switch config.Target {
+	case TargetStdout:
+		h.writer = os.Stdout
+	case TargetStderr:
+		h.writer = os.Stdin
+	case TargetDiscard:
+		h.writer = io.Discard
+	}
+
+	h.format = config.Format
+	h.color = config.Color
 }

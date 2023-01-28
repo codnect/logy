@@ -13,23 +13,33 @@ import (
 )
 
 var (
-	rootLogger    = Named("")
+	rootLogger    = newLogger("", LevelInfo, nil)
 	defaultLogger atomic.Value
 
-	loggers = map[string]*Logger{}
-	mu      sync.RWMutex
+	cache         = map[string]*Logger{}
+	loggerCacheMu sync.RWMutex
 )
 
 func init() {
+	defer loggerCacheMu.Unlock()
+	loggerCacheMu.Lock()
+	cache[""] = rootLogger
 	defaultLogger.Store(rootLogger)
 }
 
 type Logger struct {
-	name    string
-	level   Level
-	handler Handler
+	name     string
+	level    atomic.Value
+	handlers map[string]Handler
+
+	parent   *Logger
+	children map[string]*Logger
 
 	mu sync.RWMutex
+}
+
+func Default() *Logger {
+	return defaultLogger.Load().(*Logger)
 }
 
 func SetDefault(logger *Logger) {
@@ -43,53 +53,126 @@ func SetDefault(logger *Logger) {
 	log.SetFlags(0)
 }
 
-func Default() *Logger {
-	return defaultLogger.Load().(*Logger)
+func New() *Logger {
+	rpc := make([]uintptr, 1)
+	runtime.Callers(1, rpc[:])
+	frame, _ := runtime.CallersFrames(rpc).Next()
+
+	lastSlash := strings.LastIndexByte(frame.Function, '/')
+	if lastSlash < 0 {
+		lastSlash = 0
+	}
+
+	lastDot := strings.IndexByte(frame.Function[lastSlash:], '.') + lastSlash
+	return getLogger(frame.Function[:lastDot], "")
 }
 
 func Of[T any]() *Logger {
 	typ := reflect.TypeOf((*T)(nil)).Elem()
+
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 	}
 
 	name := typ.Name()
-	pkg := strings.ReplaceAll(typ.PkgPath(), "/", ".")
-	return Named(fmt.Sprintf("%s.%s", pkg, name))
+	return getLogger(typ.PkgPath(), name)
 }
 
 func Named(name string) *Logger {
-	defer mu.Unlock()
-	mu.Lock()
+	return getLogger(name, "")
+}
 
-	if logger, ok := loggers[name]; ok {
+func getLogger(pkg string, typeName string) *Logger {
+	defer loggerCacheMu.Unlock()
+	loggerCacheMu.Lock()
+
+	loggerName := pkg
+	if typeName != "" {
+		loggerName = fmt.Sprintf("%s.%s", pkg, typeName)
+	}
+
+	if logger, ok := cache[loggerName]; ok {
 		return logger
 	}
 
-	logger := &Logger{
-		name:    name,
-		level:   LevelError,
-		handler: NewConsoleHandler(),
+	names := strings.Split(pkg, "/")
+	if typeName != "" {
+		names = append(names, typeName)
 	}
 
-	loggers[name] = logger
+	logger := rootLogger
+	loggerName = ""
+
+	for index, value := range names {
+		if loggerName == "" {
+			loggerName = value
+		} else if len(names)-1 == index && typeName != "" {
+			loggerName = fmt.Sprintf("%s.%s", pkg, typeName)
+		} else {
+			loggerName = fmt.Sprintf("%s/%s", loggerName, value)
+		}
+
+		childLogger, ok := logger.getChildLogger(loggerName)
+		if !ok {
+			logger = logger.createChildLogger(loggerName)
+		} else {
+			logger = childLogger
+		}
+
+		if _, exists := cache[loggerName]; !exists {
+			cache[loggerName] = logger
+		}
+	}
+
 	return logger
 }
 
-func New() *Logger {
-	return Named("")
+func newLogger(name string, level Level, parent *Logger) *Logger {
+	logger := &Logger{
+		name:     name,
+		handlers: map[string]Handler{},
+		parent:   parent,
+		children: map[string]*Logger{},
+	}
+
+	logger.level.Store(level)
+	return logger
+}
+
+func (l *Logger) createChildLogger(name string) *Logger {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+
+	logger := newLogger(name, LevelInfo, l)
+	l.children[name] = logger
+	return logger
+}
+
+func (l *Logger) getChildLogger(name string) (*Logger, bool) {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+
+	if logger, ok := l.children[name]; ok {
+		return logger, true
+	}
+
+	return nil, false
+}
+
+func (l *Logger) Name() string {
+	return l.name
 }
 
 func (l *Logger) SetLevel(level Level) {
-	defer l.mu.Unlock()
-	l.mu.Lock()
-	l.level = level
+	l.level.Store(level)
+}
+
+func (l *Logger) Level() Level {
+	return l.level.Load().(Level)
 }
 
 func (l *Logger) IsLoggable(level Level) bool {
-	defer l.mu.Unlock()
-	l.mu.Lock()
-	return level >= l.level
+	return level >= l.Level()
 }
 
 func (l *Logger) I(ctx context.Context, msg string, args ...any) {
@@ -106,6 +189,10 @@ func (l *Logger) W(ctx context.Context, msg string, args ...any) {
 
 func (l *Logger) D(ctx context.Context, msg string, args ...any) {
 	l.logDepth(1, ctx, LevelDebug, msg, args...)
+}
+
+func (l *Logger) T(ctx context.Context, msg string, args ...any) {
+	l.logDepth(1, ctx, LevelTrace, msg, args...)
 }
 
 func (l *Logger) A(ctx context.Context, level Level, msg string, attrs ...Attribute) {
@@ -132,6 +219,10 @@ func (l *Logger) Debug(msg string, args ...any) {
 	l.logDepth(1, nil, LevelDebug, msg, args...)
 }
 
+func (l *Logger) Trace(msg string, args ...any) {
+	l.logDepth(1, nil, LevelTrace, msg, args...)
+}
+
 func (l *Logger) Attrs(level Level, msg string, attrs ...Attribute) {
 	l.logAttrsDepth(1, nil, level, msg, attrs...)
 }
@@ -140,44 +231,106 @@ func (l *Logger) Log(level Level, msg string, args ...any) {
 	l.logDepth(1, nil, level, msg, args...)
 }
 
+func (l *Logger) onConfigure(config *Config) {
+	if l.name == "" {
+		l.SetLevel(config.Level)
+		l.prepareHandlers(config.Handlers, false)
+	} else {
+		if cfg, exists := config.Package[l.name]; exists {
+			l.SetLevel(cfg.Level)
+			l.prepareHandlers(cfg.Handlers, cfg.UseParentHandlers)
+		} else {
+			l.SetLevel(l.parent.Level())
+			l.prepareHandlers(nil, true)
+		}
+	}
+
+	for _, child := range l.children {
+		child.onConfigure(config)
+	}
+}
+
+func (l *Logger) prepareHandlers(handlerNames []string, useParentHandlers bool) {
+	l.handlers = make(map[string]Handler, 0)
+
+	if useParentHandlers && l.parent != nil {
+		for name, handler := range l.parent.handlers {
+			l.handlers[name] = handler
+		}
+	}
+
+	for _, handlerName := range handlerNames {
+		if _, ok := l.handlers[strings.TrimSpace(handlerName)]; ok {
+			continue
+		}
+
+		if handler, ok := handlers[strings.TrimSpace(handlerName)]; ok {
+			l.handlers[handlerName] = handler
+		}
+	}
+}
+
 func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg string, args ...any) error {
-	/*if !l.handler.IsLoggable(level) {
-		return
-	}*/
+	if !l.IsLoggable(level) {
+		return nil
+	}
 
-	record := l.makeRecord(depth, ctx, msg, level)
-	return l.handler.Handle(record)
+	record := l.makeRecord(depth, ctx, level, msg)
+
+	for _, handler := range l.handlers {
+		if handler.IsLoggable(record) {
+			err := handler.Handle(record)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
-func (l *Logger) logAttrsDepth(depth int, ctx context.Context, level Level, msg string, attrs ...Attribute) {
-	/*if !l.handler.IsLoggable(level) {
-		return
-	}*/
+func (l *Logger) logAttrsDepth(depth int, ctx context.Context, level Level, msg string, attrs ...Attribute) error {
+	if !l.IsLoggable(level) {
+		return nil
+	}
 
-	record := l.makeRecord(depth, ctx, msg, level)
-	_ = l.handler.Handle(record)
+	record := l.makeRecord(depth, ctx, level, msg)
+
+	for _, handler := range l.handlers {
+		if handler.IsLoggable(record) {
+			err := handler.Handle(record)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
-func (l *Logger) makeRecord(depth int, ctx context.Context, msg string, level Level) Record {
+func (l *Logger) makeRecord(depth int, ctx context.Context, level Level, msg string) Record {
 	var pcs [1]uintptr
 	runtime.Callers(depth+3, pcs[:])
 
-	frames := runtime.CallersFrames(pcs[:1])
+	/*frames := runtime.CallersFrames(pcs[:1])
 	frame, _ := frames.Next()
 
+	*/
 	return Record{
 		Time:       time.Now(),
 		Message:    msg,
 		Level:      level,
 		Context:    ctx,
 		LoggerName: l.name,
-		Caller: Caller{
+		/*Caller: Caller{
 			Defined:  frame.PC != 0,
 			PC:       frame.PC,
 			File:     frame.File,
 			Line:     frame.Line,
 			Function: frame.Function,
-		},
+		},*/
 	}
 }
 
@@ -195,6 +348,10 @@ func W(ctx context.Context, msg string, args ...any) {
 
 func D(ctx context.Context, msg string, args ...any) {
 	Default().logDepth(1, ctx, LevelWarn, msg, args...)
+}
+
+func T(ctx context.Context, msg string, args ...any) {
+	Default().logDepth(1, ctx, LevelTrace, msg, args...)
 }
 
 func A(ctx context.Context, level Level, msg string, attrs ...Attribute) {
@@ -219,6 +376,10 @@ func Warn(msg string, args ...any) {
 
 func Debug(msg string, args ...any) {
 	Default().logDepth(1, nil, LevelWarn, msg, args...)
+}
+
+func Trace(msg string, args ...any) {
+	Default().logDepth(1, nil, LevelTrace, msg, args...)
 }
 
 func Attrs(level Level, msg string, attrs ...Attribute) {

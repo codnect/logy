@@ -1,32 +1,26 @@
 package logy
 
-import "fmt"
-
 type Level int
 
 const (
-	LevelDebug Level = -4
-	LevelInfo  Level = 0
-	LevelWarn  Level = 4
-	LevelError Level = 8
+	LevelError Level = iota + 1
+	LevelWarn
+	LevelInfo
+	LevelDebug
+	LevelTrace
 )
 
 func (l Level) String() string {
-	str := func(base string, val Level) string {
-		if val == 0 {
-			return base
-		}
-		return fmt.Sprintf("%s%+d", base, val)
-	}
-
-	switch {
-	case l < LevelInfo:
-		return str("DEBUG", l-LevelDebug)
-	case l < LevelWarn:
-		return str("INFO", l-LevelInfo)
-	case l < LevelError:
-		return str("WARN", l-LevelWarn)
+	switch l {
+	case LevelTrace:
+		return "TRACE"
+	case LevelDebug:
+		return "DEBUG"
+	case LevelInfo:
+		return "INFO"
+	case LevelWarn:
+		return "WARN"
 	default:
-		return str("ERROR", l-LevelError)
+		return "ERROR"
 	}
 }
