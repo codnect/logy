@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultLogFormat = "%d{2006-01-02 15:04:05.000} %l %p : %m%n"
+	defaultLogFormat = "%d %p %c : %m%s%n"
 
 	PropertyLevel   = "level"
 	PropertyEnabled = "enabled"
@@ -28,39 +28,31 @@ const (
 	TargetDiscard OutputTarget = "discard"
 )
 
-type JsonFieldType string
-
-const (
-	FieldTypeString  JsonFieldType = "string"
-	FieldTypeInteger JsonFieldType = "int"
-)
-
 type JsonAdditionalField struct {
-	Value any           `json:"value" xml:"value" yaml:"value"`
-	Type  JsonFieldType `json:"type" xml:"type" yaml:"type"`
+	Value any `json:"value" xml:"value" yaml:"value"`
 }
 
 type JsonConfig struct {
-	ContextKeys      []string                       `json:"context-keys" xml:"context-keys" yaml:"context-keys"`
 	ExcludeKeys      []string                       `json:"exclude-keys" xml:"exclude-keys" yaml:"exclude-keys"`
 	AdditionalFields map[string]JsonAdditionalField `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
 }
 
 type ConsoleConfig struct {
-	Enabled bool         `json:"enabled" xml:"enabled" yaml:"enabled"`
-	Target  OutputTarget `json:"target" xml:"target" yaml:"target"`
-	Format  string       `json:"format" xml:"format" yaml:"format"`
-	Color   bool         `json:"color" xml:"color" yaml:"color"`
-	Level   Level        `json:"level" xml:"level" yaml:"level"`
-	Json    *JsonConfig  `json:"json" xml:"json" yaml:"json"`
+	Enable bool         `json:"enable" xml:"enable" yaml:"enable"`
+	Target OutputTarget `json:"target" xml:"target" yaml:"target"`
+	Format string       `json:"format" xml:"format" yaml:"format"`
+	Color  bool         `json:"color" xml:"color" yaml:"color"`
+	Level  Level        `json:"level" xml:"level" yaml:"level"`
+	Json   *JsonConfig  `json:"json" xml:"json" yaml:"json"`
 }
 
 type FileConfig struct {
-	Enabled bool        `json:"enabled" xml:"enabled" yaml:"enabled"`
-	Path    string      `json:"path" xml:"path" yaml:"path"`
-	Format  string      `json:"format" xml:"format" yaml:"format"`
-	Level   Level       `json:"level" xml:"level" yaml:"level"`
-	Json    *JsonConfig `json:"json" xml:"json" yaml:"json"`
+	Name   string      `json:"name" xml:"name" yaml:"name"`
+	Enable bool        `json:"enable" xml:"enable" yaml:"enable"`
+	Path   string      `json:"path" xml:"path" yaml:"path"`
+	Format string      `json:"format" xml:"format" yaml:"format"`
+	Level  Level       `json:"level" xml:"level" yaml:"level"`
+	Json   *JsonConfig `json:"json" xml:"json" yaml:"json"`
 }
 
 type PackageConfig struct {
@@ -92,6 +84,9 @@ func LoadConfig(config *Config) error {
 	if config.Handlers == nil || len(config.Handlers) == 0 {
 		config.Handlers = []string{"console"}
 		enableConsole = true
+		if config.File != nil && config.File.Enable {
+			config.Handlers = append(config.Handlers, "file")
+		}
 	}
 
 	err := initializePackageConfig(config)
@@ -145,24 +140,27 @@ func initializeConsoleConfig(config *Config, enableConsole bool) error {
 
 	if config.Console == nil {
 		config.Console = &ConsoleConfig{
-			Enabled: true,
-			Target:  TargetStderr,
-			Format:  defaultLogFormat,
-			Color:   true,
-			Level:   LevelDebug,
-			Json:    nil,
+			Enable: true,
+			Target: TargetStderr,
+			Format: defaultLogFormat,
+			Color:  true,
+			Level:  LevelDebug,
+			Json:   nil,
 		}
 	} else {
 		if config.Console.Level == 0 {
 			config.Console.Level = LevelDebug
 		}
 
-		if config.Console.Enabled && strings.TrimSpace(config.Console.Format) == "" {
+		if config.Console.Enable && strings.TrimSpace(config.Console.Format) == "" {
 			return errors.New("console.format cannot be empty or blank")
 		}
 
 		if enableConsole {
-			config.Console.Enabled = true
+			config.Console.Enable = true
+		}
+
+		if strings.TrimSpace(config.Console.Format) == "" {
 			config.Console.Format = defaultLogFormat
 		}
 	}
@@ -174,19 +172,32 @@ func initializeFileConfig(config *Config) error {
 
 	if config.File == nil {
 		config.File = &FileConfig{
-			Enabled: false,
-			Path:    "logy.log",
-			Format:  defaultLogFormat,
-			Level:   LevelInfo,
-			Json:    nil,
+			Name:   "logy.log",
+			Enable: false,
+			Path:   ".",
+			Format: defaultLogFormat,
+			Level:  LevelInfo,
+			Json:   nil,
 		}
 	} else {
 		if config.File.Level == 0 {
 			config.File.Level = LevelInfo
 		}
 
-		if config.File.Enabled && strings.TrimSpace(config.File.Format) == "" {
-			return errors.New("file.format cannot be empty or blank")
+		if strings.TrimSpace(config.File.Format) == "" {
+			config.File.Format = defaultLogFormat
+		}
+
+		if config.File.Level == 0 {
+			config.File.Level = LevelInfo
+		}
+
+		if config.File.Name == "" {
+			config.File.Name = "logy.log"
+		}
+
+		if config.File.Path == "" {
+			config.File.Path = "."
 		}
 	}
 
@@ -206,6 +217,17 @@ func configureHandlers(config *Config) {
 			}
 
 			console.onConfigure(config.Console)
+			continue
+		}
+
+		if name == "file" {
+			console, ok := handler.(*FileHandler)
+
+			if !ok {
+				continue
+			}
+
+			console.onConfigure(config.File)
 			continue
 		}
 
