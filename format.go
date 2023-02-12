@@ -191,6 +191,7 @@ func formatText(buf *[]byte, format string, record Record, console bool) {
 				*buf = append(*buf, record.Caller.Path()...)
 			case 's': // stack trace if exist
 				if record.StackTrace != "" {
+					*buf = append(*buf, '\n')
 					*buf = append(*buf, strings.ReplaceAll(record.StackTrace, "\\n", "\n")...)
 				}
 			case 'n': // newline
