@@ -36,19 +36,53 @@ func (mc *MappedContext) Value(key string) any {
 	return mc.values[key]
 }
 
+func (mc *MappedContext) Clone() *MappedContext {
+	c := *mc
+	return &c
+}
+
 func MappedContextFrom(ctx context.Context) *MappedContext {
-	return ctx.Value(MappedContextKey).(*MappedContext)
+	if ctx == nil {
+		return nil
+	}
+
+	val := ctx.Value(MappedContextKey)
+
+	if val != nil {
+		if mc, isMc := val.(*MappedContext); isMc {
+			return mc
+		}
+
+		return nil
+	}
+
+	return nil
 }
 
 func WithMappedContext(ctx context.Context) context.Context {
+	mc := MappedContextFrom(ctx)
+
+	if mc != nil {
+		return context.WithValue(ctx, MappedContextKey, mc.Clone())
+	}
+
 	return context.WithValue(ctx, MappedContextKey, NewMappedContext())
 }
 
 func ToMappedContext(ctx context.Context, key string, value any) {
-	mc := ctx.Value(MappedContextKey).(*MappedContext)
-	mc.Put(key, value)
+	mc := MappedContextFrom(ctx)
+
+	if mc != nil {
+		mc.Put(key, value)
+	}
 }
 
 func FromMappedContext(ctx context.Context, key string) any {
-	return ctx.Value(MappedContextKey).(*MappedContext)
+	mc := MappedContextFrom(ctx)
+
+	if mc == nil {
+		return nil
+	}
+
+	return mc.Value(key)
 }

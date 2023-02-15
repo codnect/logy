@@ -1,7 +1,9 @@
 package logy
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"strings"
 	"sync"
 )
@@ -68,6 +70,29 @@ type Config struct {
 	File             *FileConfig                 `json:"file" xml:"file" yaml:"file"`
 	Package          map[string]*PackageConfig   `json:"package" xml:"package" yaml:"package"`
 	ExternalHandlers map[string]ConfigProperties `json:"-" xml:"-" yaml:"-"`
+}
+
+func loadConfigFromEnv() {
+	cfgMap := map[string]any{}
+
+	env := os.Environ()
+	for _, variable := range env {
+		kv := strings.SplitN(variable, "=", 2)
+		if strings.HasPrefix(kv[0], "logy.") {
+			key := strings.TrimSpace(kv[0])
+			key = key[5:]
+			cfgMap[key] = kv[1]
+		}
+	}
+
+	flattenMap := flatMap(cfgMap)
+	data, _ := json.Marshal(flattenMap)
+
+	config := &Config{}
+	err := json.Unmarshal(data, config)
+	if err == nil {
+		err = LoadConfig(config)
+	}
 }
 
 func LoadConfig(config *Config) error {

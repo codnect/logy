@@ -1,5 +1,7 @@
 package logy
 
+import "encoding/json"
+
 type Level int
 
 const (
@@ -23,4 +25,26 @@ func (l Level) String() string {
 	default:
 		return "ERROR"
 	}
+}
+
+func (l *Level) UnmarshalJSON(data []byte) error {
+	var val string
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+
+	switch val {
+	case "TRACE":
+		*l = LevelTrace
+	case "DEBUG":
+		*l = LevelDebug
+	case "INFO":
+		*l = LevelInfo
+	case "WARN":
+		*l = LevelWarn
+	case "ERROR":
+		*l = LevelError
+	}
+
+	return nil
 }
