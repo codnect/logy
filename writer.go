@@ -31,5 +31,5 @@ func (w *writer) Write(buf []byte) (n int, err error) {
 		buf = buf[:len(buf)-1]
 	}
 
-	return origLen, w.logger.logDepth(depth, nil, LevelInfo, string(buf))
+	return origLen, w.logger.logDepth(depth, nil, LevelDebug, string(buf))
 }

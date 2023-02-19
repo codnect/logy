@@ -24,10 +24,10 @@ var (
 
 	levelColors = []logColor{
 		colorRed,
-		colorGreen,
 		colorYellow,
+		colorGreen,
 		colorBlue,
-		colorDefault,
+		colorMagenta,
 	}
 )
 

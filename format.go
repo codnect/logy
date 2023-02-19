@@ -171,11 +171,11 @@ func formatText(buf *[]byte, format string, record Record, console bool) {
 				formatLevelAsText(buf, record.Level, console)
 			case 'x': // context value without key
 				name, l := getPlaceholderName(format[j+2:])
-				formatContextValueAsText(buf, name, mc, false, true)
+				formatContextValueAsText(buf, name, mc, false)
 				w = l + 1
 			case 'X': // context value with key
 				name, l := getPlaceholderName(format[j+2:])
-				formatContextValueAsText(buf, name, mc, true, true)
+				formatContextValueAsText(buf, name, mc, true)
 				w = l + 1
 			case 'm': // message
 				*buf = append(*buf, record.Message...)
@@ -252,17 +252,13 @@ func formatLevelAsText(buf *[]byte, level Level, console bool) {
 	}
 }
 
-func formatContextValueAsText(buf *[]byte, key string, mc *MappedContext, includeKey, console bool) {
+func formatContextValueAsText(buf *[]byte, key string, mc *MappedContext, includeKey bool) {
 	if mc == nil {
 		return
 	}
 
 	if key == "" {
 		return
-	}
-
-	if console {
-		colorMagenta.start(buf)
 	}
 
 	if includeKey {
@@ -274,10 +270,6 @@ func formatContextValueAsText(buf *[]byte, key string, mc *MappedContext, includ
 
 	if val != nil {
 		appendValue(buf, val, false)
-	}
-
-	if console {
-		colorMagenta.end(buf)
 	}
 }
 

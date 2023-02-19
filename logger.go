@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	RootLoggerName = "github.com.procyon-projects.procyon.app"
+	RootLoggerName = "root"
 )
 
 var (
@@ -87,6 +87,10 @@ func Named(name string) *Logger {
 }
 
 func getLogger(pkg string, typeName string) *Logger {
+	configMu.Lock()
+	cfg := config
+	configMu.Unlock()
+
 	defer loggerCacheMu.Unlock()
 	loggerCacheMu.Lock()
 
@@ -117,8 +121,10 @@ func getLogger(pkg string, typeName string) *Logger {
 		}
 
 		childLogger, ok := logger.getChildLogger(loggerName)
+
 		if !ok {
 			logger = logger.createChildLogger(loggerName)
+			logger.applyConfig(cfg)
 		} else {
 			logger = childLogger
 		}
@@ -192,11 +198,11 @@ func (l *Logger) IsInfoEnabled() bool {
 }
 
 func (l *Logger) E(ctx context.Context, msg string, args ...any) {
-	l.logDepth(1, ctx, LevelError, msg, args...)
+	_ = l.logDepth(1, ctx, LevelError, msg, args...)
 }
 
 func (l *Logger) Error(msg string, args ...any) {
-	l.logDepth(1, nil, LevelError, msg, args...)
+	_ = l.logDepth(1, nil, LevelError, msg, args...)
 }
 
 func (l *Logger) IsErrorEnabled() bool {
@@ -204,11 +210,11 @@ func (l *Logger) IsErrorEnabled() bool {
 }
 
 func (l *Logger) W(ctx context.Context, msg string, args ...any) {
-	l.logDepth(1, ctx, LevelWarn, msg, args...)
+	_ = l.logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
 func (l *Logger) Warn(msg string, args ...any) {
-	l.logDepth(1, nil, LevelWarn, msg, args...)
+	_ = l.logDepth(1, nil, LevelWarn, msg, args...)
 }
 
 func (l *Logger) IsWarnEnabled() bool {
@@ -216,11 +222,11 @@ func (l *Logger) IsWarnEnabled() bool {
 }
 
 func (l *Logger) D(ctx context.Context, msg string, args ...any) {
-	l.logDepth(1, ctx, LevelDebug, msg, args...)
+	_ = l.logDepth(1, ctx, LevelDebug, msg, args...)
 }
 
 func (l *Logger) Debug(msg string, args ...any) {
-	l.logDepth(1, nil, LevelDebug, msg, args...)
+	_ = l.logDepth(1, nil, LevelDebug, msg, args...)
 }
 
 func (l *Logger) IsDebugEnabled() bool {
@@ -228,33 +234,37 @@ func (l *Logger) IsDebugEnabled() bool {
 }
 
 func (l *Logger) T(ctx context.Context, msg string, args ...any) {
-	l.logDepth(1, ctx, LevelTrace, msg, args...)
+	_ = l.logDepth(1, ctx, LevelTrace, msg, args...)
 }
 
 func (l *Logger) Trace(msg string, args ...any) {
-	l.logDepth(1, nil, LevelTrace, msg, args...)
+	_ = l.logDepth(1, nil, LevelTrace, msg, args...)
 }
 
 func (l *Logger) IsTraceEnabled() bool {
 	return LevelTrace <= l.Level()
 }
 
-func (l *Logger) onConfigure(config *Config) {
-	if l.name == RootLoggerName {
-		l.SetLevel(config.Level)
-		l.prepareHandlers(config.Handlers, false)
+func (l *Logger) applyConfig(config *Config) {
+	if conf, exists := config.Package[l.name]; exists {
+		l.SetLevel(conf.Level)
+		l.prepareHandlers(conf.Handlers, conf.UseParentHandlers)
 	} else {
-		if cfg, exists := config.Package[l.name]; exists {
-			l.SetLevel(cfg.Level)
-			l.prepareHandlers(cfg.Handlers, cfg.UseParentHandlers)
-		} else {
-			l.SetLevel(l.parent.Level())
-			l.prepareHandlers(nil, true)
-		}
+		l.SetLevel(l.parent.Level())
+		l.prepareHandlers(nil, true)
 	}
 
 	for _, child := range l.children {
 		child.onConfigure(config)
+	}
+}
+
+func (l *Logger) onConfigure(conf *Config) {
+	if l.name == RootLoggerName {
+		l.SetLevel(conf.Level)
+		l.prepareHandlers(conf.Handlers, false)
+	} else {
+		l.applyConfig(conf)
 	}
 }
 
@@ -278,7 +288,7 @@ func (l *Logger) prepareHandlers(handlerNames []string, useParentHandlers bool) 
 	}
 }
 
-func (l *Logger) expand(msg string, args ...any) (string, int) {
+func (l *Logger) expandMessage(msg string, args ...any) (string, int) {
 	var buf []byte
 
 	i := 0
@@ -321,7 +331,7 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 	}
 
 	arg := 0
-	msg, arg = l.expand(msg, args...)
+	msg, arg = l.expandMessage(msg, args...)
 	record := l.makeRecord(ctx, level, msg)
 
 	if arg == len(args)-1 {
@@ -412,11 +422,11 @@ func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
 }
 
 func I(ctx context.Context, msg string, args ...any) {
-	Default().logDepth(1, ctx, LevelInfo, msg, args...)
+	_ = Default().logDepth(1, ctx, LevelInfo, msg, args...)
 }
 
 func Info(msg string, args ...any) {
-	Default().logDepth(1, nil, LevelInfo, msg, args...)
+	_ = Default().logDepth(1, nil, LevelInfo, msg, args...)
 }
 
 func IsInfoEnabled() bool {
@@ -424,11 +434,11 @@ func IsInfoEnabled() bool {
 }
 
 func E(ctx context.Context, err error, args ...any) {
-	Default().logDepth(1, ctx, LevelError, err.Error(), args...)
+	_ = Default().logDepth(1, ctx, LevelError, err.Error(), args...)
 }
 
 func Error(err error, args ...any) {
-	Default().logDepth(1, nil, LevelError, err.Error(), args...)
+	_ = Default().logDepth(1, nil, LevelError, err.Error(), args...)
 }
 
 func IsErrorEnabled() bool {
@@ -436,11 +446,11 @@ func IsErrorEnabled() bool {
 }
 
 func W(ctx context.Context, msg string, args ...any) {
-	Default().logDepth(1, ctx, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
 func Warn(msg string, args ...any) {
-	Default().logDepth(1, nil, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, nil, LevelWarn, msg, args...)
 }
 
 func IsWarnEnabled() bool {
@@ -448,11 +458,11 @@ func IsWarnEnabled() bool {
 }
 
 func D(ctx context.Context, msg string, args ...any) {
-	Default().logDepth(1, ctx, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
 func Debug(msg string, args ...any) {
-	Default().logDepth(1, nil, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, nil, LevelWarn, msg, args...)
 }
 
 func IsDebugEnabled() bool {
@@ -460,11 +470,11 @@ func IsDebugEnabled() bool {
 }
 
 func T(ctx context.Context, msg string, args ...any) {
-	Default().logDepth(1, ctx, LevelTrace, msg, args...)
+	_ = Default().logDepth(1, ctx, LevelTrace, msg, args...)
 }
 
 func Trace(msg string, args ...any) {
-	Default().logDepth(1, nil, LevelTrace, msg, args...)
+	_ = Default().logDepth(1, nil, LevelTrace, msg, args...)
 }
 
 func IsTraceEnabled() bool {

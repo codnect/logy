@@ -9,25 +9,27 @@ import (
 )
 
 const (
-	defaultLogFormat = "%d %p %c : %m%s%n"
+	defaultLogFormat   = "%d %p %c : %m%s%n"
+	defaultLogFileName = "logy.log"
+	defaultLogFilePath = "."
 
 	PropertyLevel   = "level"
 	PropertyEnabled = "enabled"
 )
 
 var (
-	cfg   *Config
-	cfgMu sync.RWMutex
+	config   *Config
+	configMu sync.RWMutex
 )
 
 type ConfigProperties map[string]any
 
-type OutputTarget string
+type Target string
 
 const (
-	TargetStderr  OutputTarget = "stderr"
-	TargetStdout  OutputTarget = "stdout"
-	TargetDiscard OutputTarget = "discard"
+	TargetStderr  Target = "stderr"
+	TargetStdout  Target = "stdout"
+	TargetDiscard Target = "discard"
 )
 
 type JsonAdditionalField struct {
@@ -40,12 +42,12 @@ type JsonConfig struct {
 }
 
 type ConsoleConfig struct {
-	Enable bool         `json:"enable" xml:"enable" yaml:"enable"`
-	Target OutputTarget `json:"target" xml:"target" yaml:"target"`
-	Format string       `json:"format" xml:"format" yaml:"format"`
-	Color  bool         `json:"color" xml:"color" yaml:"color"`
-	Level  Level        `json:"level" xml:"level" yaml:"level"`
-	Json   *JsonConfig  `json:"json" xml:"json" yaml:"json"`
+	Enable bool        `json:"enable" xml:"enable" yaml:"enable"`
+	Target Target      `json:"target" xml:"target" yaml:"target"`
+	Format string      `json:"format" xml:"format" yaml:"format"`
+	Color  bool        `json:"color" xml:"color" yaml:"color"`
+	Level  Level       `json:"level" xml:"level" yaml:"level"`
+	Json   *JsonConfig `json:"json" xml:"json" yaml:"json"`
 }
 
 type FileConfig struct {
@@ -88,62 +90,66 @@ func loadConfigFromEnv() {
 	flattenMap := flatMap(cfgMap)
 	data, _ := json.Marshal(flattenMap)
 
-	config := &Config{}
-	err := json.Unmarshal(data, config)
+	cfg := &Config{}
+	err := json.Unmarshal(data, cfg)
 	if err == nil {
-		err = LoadConfig(config)
+		err = LoadConfig(cfg)
 	}
 }
 
-func LoadConfig(config *Config) error {
-	if config == nil {
+func LoadConfig(cfg *Config) error {
+	if cfg == nil {
 		return errors.New("config cannot be nil")
 	}
 
-	if config.Level == 0 {
-		config.Level = LevelInfo
+	if cfg.Level == 0 {
+		cfg.Level = LevelInfo
 	}
 
 	enableConsole := false
 
-	if config.Handlers == nil || len(config.Handlers) == 0 {
-		config.Handlers = []string{"console"}
+	if cfg.Handlers == nil || len(cfg.Handlers) == 0 {
+		cfg.Handlers = []string{"console"}
 		enableConsole = true
-		if config.File != nil && config.File.Enable {
-			config.Handlers = append(config.Handlers, "file")
+		if cfg.File != nil && cfg.File.Enable {
+			cfg.Handlers = append(cfg.Handlers, "file")
 		}
 	}
 
-	err := initializePackageConfig(config)
+	err := initializePackageConfig(cfg)
 	if err != nil {
 		return err
 	}
 
-	err = initializeConsoleConfig(config, enableConsole)
+	err = initializeConsoleConfig(cfg, enableConsole)
 	if err != nil {
 		return err
 	}
 
-	err = initializeFileConfig(config)
+	err = initializeFileConfig(cfg)
 	if err != nil {
 		return err
 	}
 
-	defer cfgMu.Unlock()
-	cfgMu.Lock()
+	defer configMu.Unlock()
+	configMu.Lock()
 
-	cfg = config
+	config = cfg
 
-	configureHandlers(cfg)
+	err = configureHandlers(cfg)
+	if err != nil {
+		return err
+	}
+
 	return configureLoggers()
 }
 
-func initializePackageConfig(config *Config) error {
-	if config.Package == nil {
-		config.Package = map[string]*PackageConfig{}
+func initializePackageConfig(cfg *Config) error {
+	if cfg.Package == nil {
+		cfg.Package = map[string]*PackageConfig{}
 	}
 
-	for pkg, pkgCfg := range config.Package {
+	for pkg, pkgCfg := range cfg.Package {
 		if strings.TrimSpace(pkg) == "" {
 			return errors.New("package cannot be empty or blank")
 		}
@@ -161,10 +167,10 @@ func initializePackageConfig(config *Config) error {
 	return nil
 }
 
-func initializeConsoleConfig(config *Config, enableConsole bool) error {
+func initializeConsoleConfig(cfg *Config, enableConsole bool) error {
 
-	if config.Console == nil {
-		config.Console = &ConsoleConfig{
+	if cfg.Console == nil {
+		cfg.Console = &ConsoleConfig{
 			Enable: true,
 			Target: TargetStderr,
 			Format: defaultLogFormat,
@@ -173,63 +179,63 @@ func initializeConsoleConfig(config *Config, enableConsole bool) error {
 			Json:   nil,
 		}
 	} else {
-		if config.Console.Level == 0 {
-			config.Console.Level = LevelDebug
+		if cfg.Console.Level == 0 {
+			cfg.Console.Level = LevelDebug
 		}
 
-		if config.Console.Enable && strings.TrimSpace(config.Console.Format) == "" {
+		if cfg.Console.Enable && strings.TrimSpace(cfg.Console.Format) == "" {
 			return errors.New("console.format cannot be empty or blank")
 		}
 
 		if enableConsole {
-			config.Console.Enable = true
+			cfg.Console.Enable = true
 		}
 
-		if strings.TrimSpace(config.Console.Format) == "" {
-			config.Console.Format = defaultLogFormat
+		if strings.TrimSpace(cfg.Console.Format) == "" {
+			cfg.Console.Format = defaultLogFormat
 		}
 	}
 
 	return nil
 }
 
-func initializeFileConfig(config *Config) error {
+func initializeFileConfig(cfg *Config) error {
 
-	if config.File == nil {
-		config.File = &FileConfig{
-			Name:   "logy.log",
+	if cfg.File == nil {
+		cfg.File = &FileConfig{
+			Name:   defaultLogFilePath,
 			Enable: false,
-			Path:   ".",
+			Path:   defaultLogFileName,
 			Format: defaultLogFormat,
 			Level:  LevelInfo,
 			Json:   nil,
 		}
 	} else {
-		if config.File.Level == 0 {
-			config.File.Level = LevelInfo
+		if cfg.File.Level == 0 {
+			cfg.File.Level = LevelInfo
 		}
 
-		if strings.TrimSpace(config.File.Format) == "" {
-			config.File.Format = defaultLogFormat
+		if strings.TrimSpace(cfg.File.Format) == "" {
+			cfg.File.Format = defaultLogFormat
 		}
 
-		if config.File.Level == 0 {
-			config.File.Level = LevelInfo
+		if cfg.File.Level == 0 {
+			cfg.File.Level = LevelInfo
 		}
 
-		if config.File.Name == "" {
-			config.File.Name = "logy.log"
+		if cfg.File.Name == "" {
+			cfg.File.Name = defaultLogFileName
 		}
 
-		if config.File.Path == "" {
-			config.File.Path = "."
+		if cfg.File.Path == "" {
+			cfg.File.Path = defaultLogFilePath
 		}
 	}
 
 	return nil
 }
 
-func configureHandlers(config *Config) {
+func configureHandlers(config *Config) error {
 	defer handlerMu.Unlock()
 	handlerMu.Lock()
 
@@ -241,7 +247,11 @@ func configureHandlers(config *Config) {
 				continue
 			}
 
-			console.onConfigure(config.Console)
+			err := console.onConfigure(config.Console)
+			if err != nil {
+				return err
+			}
+
 			continue
 		}
 
@@ -252,7 +262,11 @@ func configureHandlers(config *Config) {
 				continue
 			}
 
-			console.onConfigure(config.File)
+			err := console.onConfigure(config.File)
+			if err != nil {
+				return err
+			}
+
 			continue
 		}
 
@@ -260,17 +274,18 @@ func configureHandlers(config *Config) {
 			configurable, isConfigurable := handler.(ConfigurableHandler)
 
 			if !isConfigurable {
-				level, exists := cfg[PropertyLevel]
+				level, ok := cfg[PropertyLevel]
 
-				if exists {
+				if ok {
 					switch level.(type) {
 					case int:
 						handler.SetLevel(Level(level.(int)))
 					}
 				}
 
-				enabled, exists := cfg[PropertyEnabled]
-				if exists {
+				var enabled any
+				enabled, ok = cfg[PropertyEnabled]
+				if ok {
 					switch enabled.(type) {
 					case bool:
 						handler.SetEnabled(enabled.(bool))
@@ -283,6 +298,8 @@ func configureHandlers(config *Config) {
 			configurable.OnConfigure(cfg)
 		}
 	}
+
+	return nil
 }
 
 func configureLoggers() error {
@@ -292,6 +309,6 @@ func configureLoggers() error {
 	defer handlerMu.Unlock()
 	handlerMu.Lock()
 
-	rootLogger.onConfigure(cfg)
+	rootLogger.onConfigure(config)
 	return nil
 }
