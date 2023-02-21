@@ -1,7 +1,6 @@
 package logy
 
 import (
-	"github.com/gookit/color"
 	"strconv"
 )
 
@@ -20,7 +19,7 @@ const (
 )
 
 var (
-	supportColor = color.SupportColor()
+	supportColor = supportsColor()
 
 	levelColors = []logColor{
 		colorRed,

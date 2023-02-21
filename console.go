@@ -29,7 +29,7 @@ func (h *ConsoleHandler) SetColorEnabled(enabled bool) {
 	h.color.Store(enabled)
 }
 
-func (h *ConsoleHandler) ColorEnabled() bool {
+func (h *ConsoleHandler) IsColorEnabled() bool {
 	return h.color.Load().(bool)
 }
 
