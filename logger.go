@@ -2,7 +2,7 @@ package logy
 
 import (
 	"context"
-	"fmt"
+	sfmt "fmt"
 	"log"
 	"reflect"
 	"runtime"
@@ -32,9 +32,10 @@ func init() {
 }
 
 type Logger struct {
-	name     string
-	level    atomic.Value
-	handlers map[string]Handler
+	name           string
+	level          atomic.Value
+	includesCaller atomic.Value
+	handlers       map[string]Handler
 
 	parent   *Logger
 	children map[string]*Logger
@@ -96,7 +97,7 @@ func getLogger(pkg string, typeName string) *Logger {
 
 	loggerName := pkg
 	if typeName != "" {
-		loggerName = fmt.Sprintf("%s.%s", pkg, typeName)
+		loggerName = sfmt.Sprintf("%s.%s", pkg, typeName)
 	}
 
 	if logger, ok := cache[loggerName]; ok {
@@ -115,9 +116,9 @@ func getLogger(pkg string, typeName string) *Logger {
 		if loggerName == "" {
 			loggerName = value
 		} else if len(names)-1 == index && typeName != "" {
-			loggerName = fmt.Sprintf("%s.%s", pkg, typeName)
+			loggerName = sfmt.Sprintf("%s.%s", pkg, typeName)
 		} else {
-			loggerName = fmt.Sprintf("%s/%s", loggerName, value)
+			loggerName = sfmt.Sprintf("%s/%s", loggerName, value)
 		}
 
 		childLogger, ok := logger.getChildLogger(loggerName)
@@ -145,6 +146,7 @@ func newLogger(name string, level Level, parent *Logger) *Logger {
 		children: map[string]*Logger{},
 	}
 
+	logger.includesCaller.Store(false)
 	logger.level.Store(level)
 	return logger
 }
@@ -263,6 +265,10 @@ func (l *Logger) onConfigure(conf *Config) {
 	if l.name == RootLoggerName {
 		l.SetLevel(conf.Level)
 		l.prepareHandlers(conf.Handlers, false)
+
+		for _, child := range l.children {
+			child.onConfigure(config)
+		}
 	} else {
 		l.applyConfig(conf)
 	}
@@ -289,28 +295,28 @@ func (l *Logger) prepareHandlers(handlerNames []string, useParentHandlers bool) 
 }
 
 func (l *Logger) expandMessage(msg string, args ...any) (string, int) {
-	var buf []byte
+	buf := newBuffer()
+	defer buf.Free()
+
+	encoder := getTextEncoder()
+	encoder.buf = buf
 
 	i := 0
 	argIndex := 0
 	for j := 0; j < len(msg); j++ {
 		if msg[j] == '{' && j+1 < len(msg) {
-			if buf == nil {
-				buf = make([]byte, 0, 2*len(msg))
-			}
-
-			buf = append(buf, msg[i:j]...)
+			buf.WriteString(msg[i:j])
 
 			if msg[j+1] == '}' {
 				if len(args)-1 < argIndex {
-					buf = append(buf, '{')
-					buf = append(buf, '}')
+					buf.WriteByte('{')
+					buf.WriteByte('}')
 				} else {
-					appendValue(&buf, args[argIndex], false)
+					encoder.AppendAny(args[argIndex])
 					argIndex++
 				}
 			} else {
-				buf = append(buf, msg[j+1])
+				buf.WriteByte(msg[j+1])
 			}
 
 			j += 1
@@ -322,7 +328,8 @@ func (l *Logger) expandMessage(msg string, args ...any) (string, int) {
 		return msg, argIndex
 	}
 
-	return string(buf) + msg[i:], argIndex
+	putTextEncoder(encoder)
+	return buf.String() + msg[i:], argIndex
 }
 
 func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg string, args ...any) error {
@@ -330,6 +337,7 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 		return nil
 	}
 
+	includesCaller := l.includesCaller.Load().(bool)
 	arg := 0
 	msg, arg = l.expandMessage(msg, args...)
 	record := l.makeRecord(ctx, level, msg)
@@ -339,10 +347,10 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 
 		if isError {
 			l.includeStackTrace(depth+1, err, &record)
-		} else {
+		} else if includesCaller {
 			l.includeCaller(depth+1, &record)
 		}
-	} else {
+	} else if includesCaller {
 		l.includeCaller(depth+1, &record)
 	}
 

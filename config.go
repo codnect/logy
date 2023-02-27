@@ -67,6 +67,7 @@ type PackageConfig struct {
 
 type Config struct {
 	Level            Level                       `json:"level" xml:"level" yaml:"level"`
+	IncludeCaller    bool                        `json:"include-caller" xml:"include-caller" yaml:"include-caller"`
 	Handlers         []string                    `json:"handlers" xml:"handlers" yaml:"handlers"`
 	Console          *ConsoleConfig              `json:"console" xml:"console" yaml:"console"`
 	File             *FileConfig                 `json:"file" xml:"file" yaml:"file"`

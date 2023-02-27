@@ -48,12 +48,14 @@ type commonHandler struct {
 	excludedKeys     atomic.Value
 	additionalFields atomic.Value
 	writerMu         sync.RWMutex
+	isConsole        atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
 	h.SetExcludedKeys([]string{})
 	h.SetAdditionalFields(map[string]JsonAdditionalField{})
 	h.SetJsonEnabled(false)
+	h.isConsole.Store(true)
 }
 
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
@@ -69,27 +71,46 @@ func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 }
 
 func (h *commonHandler) Handle(record Record) error {
-	var (
-		buf  []byte
-		json bool
-	)
+	buf := newBuffer()
+	defer buf.Free()
 
-	json = h.json.Load().(bool)
+	json := h.json.Load().(bool)
+	console := h.isConsole.Load().(bool)
 
 	if json {
+		encoder := getJSONEncoder()
+		encoder.buf = buf
+
+		buf.WriteByte('{')
 		excludedKeys := h.excludedKeys.Load().(map[string]struct{})
 		additionalFields := h.additionalFields.Load().(map[string]JsonAdditionalField)
-		formatJson(&buf, record, excludedKeys, additionalFields)
+		formatJson(encoder, record, excludedKeys, additionalFields)
+
+		buf.WriteByte('}')
+		buf.WriteByte('\n')
+		putJSONEncoder(encoder)
 	} else {
+		encoder := getTextEncoder()
+		encoder.buf = buf
+
 		format := h.format.Load().(string)
-		formatText(&buf, format, record, true)
+		formatText(encoder, format, record, console)
+
+		putTextEncoder(encoder)
 	}
 
-	defer h.writerMu.Unlock()
-	h.writerMu.Lock()
+	target := h.target.Load()
+
+	if console {
+		targetVal, ok := target.(Target)
+		if ok && targetVal == TargetDiscard {
+			io.Discard.Write(*buf)
+			return nil
+		}
+	}
 
 	consoleWriter := h.writer.Load().(io.Writer)
-	_, err := consoleWriter.Write(buf)
+	_, err := consoleWriter.Write(*buf)
 
 	return err
 }

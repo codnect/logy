@@ -1,7 +1,6 @@
 package logy
 
 import (
-	"io"
 	"os"
 	"sync/atomic"
 )
@@ -43,7 +42,6 @@ func (h *ConsoleHandler) SetTarget(target Target) {
 		h.setWriter(os.Stdout)
 	case TargetDiscard:
 		h.target.Store(target)
-		h.setWriter(io.Discard)
 	}
 }
 

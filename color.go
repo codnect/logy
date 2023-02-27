@@ -34,17 +34,17 @@ func (c logColor) String() string {
 	return strconv.FormatInt(int64(c), 10)
 }
 
-func (c logColor) print(buf *[]byte, value string) {
+func (c logColor) print(buf *buffer, value string) {
 	if supportColor {
-		*buf = append(*buf, "\x1b["...)
-		*buf = append(*buf, c.String()...)
-		*buf = append(*buf, 'm')
+		buf.WriteString("\x1b[")
+		buf.WriteString(c.String())
+		buf.WriteByte('m')
 	}
 
-	*buf = append(*buf, value...)
+	buf.WriteString(value)
 
 	if supportColor {
-		*buf = append(*buf, "\x1b[0m"...)
+		buf.WriteString("\x1b[0m")
 	}
 }
 
