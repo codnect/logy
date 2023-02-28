@@ -41,6 +41,7 @@ func (h *ConsoleHandler) SetTarget(target Target) {
 		h.target.Store(target)
 		h.setWriter(os.Stdout)
 	case TargetDiscard:
+		h.setWriter(&discarder{})
 		h.target.Store(target)
 	}
 }

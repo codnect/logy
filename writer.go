@@ -1,8 +1,16 @@
 package logy
 
 import (
+	"io"
 	"log"
 )
+
+type discarder struct {
+}
+
+func (d *discarder) Write(p []byte) (n int, err error) {
+	return io.Discard.Write(p)
+}
 
 type writer struct {
 	logger *Logger

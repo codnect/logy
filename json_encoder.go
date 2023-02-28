@@ -684,26 +684,9 @@ func (enc *jsonEncoder) AppendError(val error) {
 }
 
 func (enc *jsonEncoder) AppendTime(t time.Time) {
-	year, month, day := t.Date()
+	enc.addElementSeparator()
 	enc.buf.WriteByte('"')
-	enc.buf.WritePosIntWidth(year, 2)
-	enc.buf.WriteByte('-')
-
-	enc.buf.WritePosIntWidth(int(month), 2)
-	enc.buf.WriteByte('-')
-
-	enc.buf.WritePosIntWidth(day, 2)
-	enc.buf.WriteByte('T')
-
-	hour, min, sec := t.Clock()
-	enc.buf.WritePosIntWidth(hour, 2)
-	enc.buf.WriteByte(':')
-	enc.buf.WritePosIntWidth(min, 2)
-	enc.buf.WriteByte(':')
-	enc.buf.WritePosIntWidth(sec, 2)
-
-	enc.buf.WriteByte('.')
-	enc.buf.WritePosIntWidth(t.Nanosecond()/1e3, 6)
+	*enc.buf = t.AppendFormat(*enc.buf, time.RFC3339)
 	enc.buf.WriteByte('"')
 }
 

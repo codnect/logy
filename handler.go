@@ -40,14 +40,13 @@ func RegisterHandler(name string, handler Handler) {
 
 type commonHandler struct {
 	target           atomic.Value
-	writer           atomic.Value
+	writer           io.Writer
 	enabled          atomic.Value
 	level            atomic.Value
 	json             atomic.Value
 	format           atomic.Value
 	excludedKeys     atomic.Value
 	additionalFields atomic.Value
-	writerMu         sync.RWMutex
 	isConsole        atomic.Value
 }
 
@@ -99,24 +98,13 @@ func (h *commonHandler) Handle(record Record) error {
 		putTextEncoder(encoder)
 	}
 
-	target := h.target.Load()
-
-	if console {
-		targetVal, ok := target.(Target)
-		if ok && targetVal == TargetDiscard {
-			io.Discard.Write(*buf)
-			return nil
-		}
-	}
-
-	consoleWriter := h.writer.Load().(io.Writer)
-	_, err := consoleWriter.Write(*buf)
+	_, err := h.writer.Write(*buf)
 
 	return err
 }
 
 func (h *commonHandler) setWriter(writer io.Writer) {
-	h.writer.Store(writer)
+	h.writer = writer
 }
 
 func (h *commonHandler) SetLevel(level Level) {

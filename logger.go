@@ -466,11 +466,11 @@ func IsWarnEnabled() bool {
 }
 
 func D(ctx context.Context, msg string, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, ctx, LevelDebug, msg, args...)
 }
 
 func Debug(msg string, args ...any) {
-	_ = Default().logDepth(1, nil, LevelWarn, msg, args...)
+	_ = Default().logDepth(1, nil, LevelDebug, msg, args...)
 }
 
 func IsDebugEnabled() bool {
