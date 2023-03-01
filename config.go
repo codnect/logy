@@ -32,13 +32,15 @@ const (
 	TargetDiscard Target = "discard"
 )
 
-type JsonAdditionalField struct {
-	Value any `json:"value" xml:"value" yaml:"value"`
+type additionalFields struct {
+	encoder *jsonEncoder
 }
 
+type JsonAdditionalFields map[string]any
+
 type JsonConfig struct {
-	ExcludeKeys      []string                       `json:"exclude-keys" xml:"exclude-keys" yaml:"exclude-keys"`
-	AdditionalFields map[string]JsonAdditionalField `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
+	ExcludeKeys      []string             `json:"exclude-keys" xml:"exclude-keys" yaml:"exclude-keys"`
+	AdditionalFields JsonAdditionalFields `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
 }
 
 type ConsoleConfig struct {

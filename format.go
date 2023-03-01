@@ -112,13 +112,15 @@ func appendLevelAsText(buf *buffer, level Level, console bool) {
 	}
 }
 
-func formatJson(encoder *jsonEncoder, record Record, excludedKeys map[string]struct{}, additionalFields map[string]JsonAdditionalField) {
+func formatJson(encoder *jsonEncoder, record Record, additionalFieldJson string) {
 	// timestamp
 	encoder.AddTime(timestampKey, record.Time)
 	// level
-	encoder.AddString(levelKey, record.Level.String())
+	encoder.AddString(loggerKey, record.Level.String())
+
 	// logger name
 	encoder.AddString(loggerKey, record.LoggerName)
+
 	// message
 	encoder.AddString(messageKey, record.Message)
 
@@ -131,12 +133,13 @@ func formatJson(encoder *jsonEncoder, record Record, excludedKeys map[string]str
 	if record.Context != nil {
 		mc := MappedContextFrom(record.Context)
 		encoder.addKey(mappedContextKey)
-		encoder.buf.WriteString(mc.ValuesAsJSON())
+		encoder.buf.WriteString(mc.ValuesAsJSON(nil))
 	}
 
 	// additional fields
-	if len(additionalFields) != 0 {
-		//appendAdditionalFields(buf, additionalFields)
+	if len(additionalFieldJson) != 0 {
+		encoder.buf.WriteByte(',')
+		encoder.buf.WriteString(additionalFieldJson)
 	}
 }
 

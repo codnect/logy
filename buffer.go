@@ -47,7 +47,7 @@ func (b *buffer) WriteInt(i int64) {
 }
 
 func (b *buffer) WriteTime(t time.Time) {
-	b.WriteInt(t.UnixNano())
+	*b = t.AppendFormat(*b, time.RFC3339)
 }
 
 func (b *buffer) WriteTimeAsString(t time.Time) {

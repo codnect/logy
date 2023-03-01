@@ -627,14 +627,21 @@ func (enc *jsonEncoder) AppendArray(arr ArrayMarshaler) error {
 func (enc *jsonEncoder) AppendString(val string) {
 	enc.addElementSeparator()
 	enc.buf.WriteByte('"')
-	enc.safeAddString(val)
+	for i := 0; i < len(val); i++ {
+		if !noEscapeTable[val[i]] {
+			*enc.buf = appendSafeString(*enc.buf, val, i)
+			enc.buf.WriteByte('"')
+			return
+		}
+	}
+	enc.buf.WriteString(val)
 	enc.buf.WriteByte('"')
 }
 
 func (enc *jsonEncoder) AppendByteString(val []byte) {
 	enc.addElementSeparator()
 	enc.buf.WriteByte('"')
-	enc.safeAddByteString(val)
+	*enc.buf = appendSafeBytes(*enc.buf, val, 0)
 	enc.buf.WriteByte('"')
 }
 
@@ -680,7 +687,9 @@ func (enc *jsonEncoder) AppendFloat64(v float64) { enc.appendFloat(v, 64) }
 func (enc *jsonEncoder) AppendFloat32(v float32) { enc.appendFloat(float64(v), 32) }
 
 func (enc *jsonEncoder) AppendError(val error) {
+	enc.buf.WriteByte('"')
 	enc.buf.WriteString(val.Error())
+	enc.buf.WriteByte('"')
 }
 
 func (enc *jsonEncoder) AppendTime(t time.Time) {
@@ -749,71 +758,104 @@ func (enc *jsonEncoder) addElementSeparator() {
 	}
 }
 
-func (enc *jsonEncoder) safeAddString(s string) {
-	for i := 0; i < len(s); {
-		if enc.tryAddRuneSelf(s[i]) {
+func appendSafeString(dst []byte, s string, i int) []byte {
+	start := 0
+	for i < len(s) {
+		b := s[i]
+		if b >= utf8.RuneSelf {
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if r == utf8.RuneError && size == 1 {
+				if start < i {
+					dst = append(dst, s[start:i]...)
+				}
+				dst = append(dst, `\ufffd`...)
+				i += size
+				start = i
+				continue
+			}
+			i += size
+			continue
+		}
+		if noEscapeTable[b] {
 			i++
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if enc.tryAddRuneError(r, size) {
-			i++
-			continue
+
+		if start < i {
+			dst = append(dst, s[start:i]...)
 		}
-		enc.buf.WriteString(s[i : i+size])
-		i += size
+		switch b {
+		case '"', '\\':
+			dst = append(dst, '\\', b)
+		case '\b':
+			dst = append(dst, '\\', 'b')
+		case '\f':
+			dst = append(dst, '\\', 'f')
+		case '\n':
+			dst = append(dst, '\\', 'n')
+		case '\r':
+			dst = append(dst, '\\', 'r')
+		case '\t':
+			dst = append(dst, '\\', 't')
+		default:
+			dst = append(dst, '\\', 'u', '0', '0', hex[b>>4], hex[b&0xF])
+		}
+		i++
+		start = i
 	}
+	if start < len(s) {
+		dst = append(dst, s[start:]...)
+	}
+	return dst
 }
 
-func (enc *jsonEncoder) safeAddByteString(s []byte) {
-	for i := 0; i < len(s); {
-		if enc.tryAddRuneSelf(s[i]) {
+func appendSafeBytes(dst, s []byte, i int) []byte {
+	start := 0
+	for i < len(s) {
+		b := s[i]
+		if b >= utf8.RuneSelf {
+			r, size := utf8.DecodeRune(s[i:])
+			if r == utf8.RuneError && size == 1 {
+				if start < i {
+					dst = append(dst, s[start:i]...)
+				}
+				dst = append(dst, `\ufffd`...)
+				i += size
+				start = i
+				continue
+			}
+			i += size
+			continue
+		}
+		if noEscapeTable[b] {
 			i++
 			continue
 		}
-		r, size := utf8.DecodeRune(s[i:])
-		if enc.tryAddRuneError(r, size) {
-			i++
-			continue
+
+		if start < i {
+			dst = append(dst, s[start:i]...)
 		}
-		enc.buf.Write(s[i : i+size])
-		i += size
+		switch b {
+		case '"', '\\':
+			dst = append(dst, '\\', b)
+		case '\b':
+			dst = append(dst, '\\', 'b')
+		case '\f':
+			dst = append(dst, '\\', 'f')
+		case '\n':
+			dst = append(dst, '\\', 'n')
+		case '\r':
+			dst = append(dst, '\\', 'r')
+		case '\t':
+			dst = append(dst, '\\', 't')
+		default:
+			dst = append(dst, '\\', 'u', '0', '0', hex[b>>4], hex[b&0xF])
+		}
+		i++
+		start = i
 	}
-}
-
-func (enc *jsonEncoder) tryAddRuneSelf(b byte) bool {
-	if b >= utf8.RuneSelf {
-		return false
+	if start < len(s) {
+		dst = append(dst, s[start:]...)
 	}
-	if 0x20 <= b && b != '\\' && b != '"' {
-		enc.buf.WriteByte(b)
-		return true
-	}
-	switch b {
-	case '\\', '"':
-		enc.buf.WriteByte('\\')
-		enc.buf.WriteByte(b)
-	case '\n':
-		enc.buf.WriteByte('\\')
-		enc.buf.WriteByte('n')
-	case '\r':
-		enc.buf.WriteByte('\\')
-		enc.buf.WriteByte('r')
-	case '\t':
-		enc.buf.WriteByte('\\')
-		enc.buf.WriteByte('t')
-	default:
-		enc.buf.WriteString(`\u00`)
-		enc.buf.WriteByte(hex[b>>4])
-		enc.buf.WriteByte(hex[b&0xF])
-	}
-	return true
-}
-
-func (enc *jsonEncoder) tryAddRuneError(r rune, size int) bool {
-	if r == utf8.RuneError && size == 1 {
-		enc.buf.WriteString(`\ufffd`)
-		return true
-	}
-	return false
+	return dst
 }

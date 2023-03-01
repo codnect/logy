@@ -337,9 +337,11 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 		return nil
 	}
 
-	includesCaller := l.includesCaller.Load().(bool)
 	arg := 0
-	msg, arg = l.expandMessage(msg, args...)
+	if len(args) != 0 {
+		msg, arg = l.expandMessage(msg, args...)
+	}
+
 	record := l.makeRecord(ctx, level, msg)
 
 	if arg == len(args)-1 {
@@ -347,10 +349,10 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 
 		if isError {
 			l.includeStackTrace(depth+1, err, &record)
-		} else if includesCaller {
+		} else if false {
 			l.includeCaller(depth+1, &record)
 		}
-	} else if includesCaller {
+	} else if false {
 		l.includeCaller(depth+1, &record)
 	}
 

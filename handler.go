@@ -39,21 +39,23 @@ func RegisterHandler(name string, handler Handler) {
 }
 
 type commonHandler struct {
-	target           atomic.Value
-	writer           io.Writer
-	enabled          atomic.Value
-	level            atomic.Value
-	json             atomic.Value
-	format           atomic.Value
-	excludedKeys     atomic.Value
-	additionalFields atomic.Value
-	isConsole        atomic.Value
+	target               atomic.Value
+	writer               io.Writer
+	enabled              atomic.Value
+	level                atomic.Value
+	json                 atomic.Value
+	format               atomic.Value
+	excludedKeys         atomic.Value
+	isConsole            atomic.Value
+	additionalFields     atomic.Value
+	additionalFieldsJson atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
 	h.SetExcludedKeys([]string{})
-	h.SetAdditionalFields(map[string]JsonAdditionalField{})
+	h.SetAdditionalFields(JsonAdditionalFields{})
 	h.SetJsonEnabled(false)
+	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
 }
 
@@ -65,7 +67,7 @@ func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 	} else {
 		h.SetJsonEnabled(false)
 		h.SetExcludedKeys([]string{})
-		h.SetAdditionalFields(map[string]JsonAdditionalField{})
+		h.SetAdditionalFields(JsonAdditionalFields{})
 	}
 }
 
@@ -81,9 +83,9 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder.buf = buf
 
 		buf.WriteByte('{')
-		excludedKeys := h.excludedKeys.Load().(map[string]struct{})
-		additionalFields := h.additionalFields.Load().(map[string]JsonAdditionalField)
-		formatJson(encoder, record, excludedKeys, additionalFields)
+		//excludedKeys := h.excludedKeys.Load().(map[string]struct{})
+		additionalFieldsJson := h.additionalFieldsJson.Load().(string)
+		formatJson(encoder, record, additionalFieldsJson)
 
 		buf.WriteByte('}')
 		buf.WriteByte('\n')
@@ -172,17 +174,30 @@ func (h *commonHandler) ExcludedKeys() []string {
 	return excludedKeys
 }
 
-func (h *commonHandler) SetAdditionalFields(additionalFields map[string]JsonAdditionalField) {
-	if len(additionalFields) != 0 {
-		h.additionalFields.Store(additionalFields)
-	} else {
-		h.additionalFields.Store(map[string]JsonAdditionalField{})
+func (h *commonHandler) SetAdditionalFields(additionalFields JsonAdditionalFields) {
+	if len(additionalFields) == 0 {
+		additionalFields = JsonAdditionalFields{}
 	}
+
+	h.additionalFields.Store(additionalFields)
+
+	buf := newBuffer()
+	jsonEncoder := getJSONEncoder()
+	jsonEncoder.buf = buf
+
+	for name, value := range additionalFields {
+		jsonEncoder.AddAny(name, value)
+	}
+
+	h.additionalFieldsJson.Store(buf.String())
+
+	buf.Free()
+	putJSONEncoder(jsonEncoder)
 }
 
-func (h *commonHandler) AdditionalFields() map[string]JsonAdditionalField {
-	additionalFields := h.additionalFields.Load().(map[string]JsonAdditionalField)
-	copyOfFields := make(map[string]JsonAdditionalField, 0)
+func (h *commonHandler) AdditionalFields() JsonAdditionalFields {
+	additionalFields := h.additionalFields.Load().(JsonAdditionalFields)
+	copyOfFields := make(JsonAdditionalFields, 0)
 
 	for key, value := range additionalFields {
 		copyOfFields[key] = value

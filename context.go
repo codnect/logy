@@ -7,6 +7,8 @@ import (
 
 const MappedContextKey = "logyMappedContext"
 
+type Filter func(key string, val any) bool
+
 type Field struct {
 	Key   string
 	Value any
@@ -68,7 +70,7 @@ func (mc *MappedContext) ValuesAsText() string {
 	return ""
 }
 
-func (mc *MappedContext) ValuesAsJSON() string {
+func (mc *MappedContext) ValuesAsJSON(filter Filter) string {
 	return mc.jsonValue.Load().(string)
 }
 
