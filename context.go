@@ -7,52 +7,50 @@ import (
 
 const MappedContextKey = "logyMappedContext"
 
-type Filter func(key string, val any) bool
-
 type Field struct {
-	Key   string
-	Value any
+	Key       string
+	Value     any
+	jsonValue atomic.Value
 }
 
 type MappedContext struct {
-	values      []Field
-	keyIndexMap map[string]int
-	size        int
-	encoder     *jsonEncoder
-	jsonValue   atomic.Value
+	values       []Field
+	keyIndexMap  map[string]int
+	encoder      *jsonEncoder
+	jsonValue    atomic.Value
+	contextIndex int
 }
 
 func NewMappedContext() *MappedContext {
-	mc := &MappedContext{values: []Field{}, keyIndexMap: map[string]int{}, encoder: &jsonEncoder{}}
+	mc := &MappedContext{values: []Field{}, encoder: &jsonEncoder{}, keyIndexMap: map[string]int{}}
 	mc.encoder.buf = newBuffer()
+	mc.jsonValue.Store("{}")
 	return mc
 }
 
-func (mc *MappedContext) Fields() []Field {
-	return mc.values
+func (mc *MappedContext) Size() int {
+	return len(mc.values)
 }
 
 func (mc *MappedContext) put(key string, value any) {
+	mc.encoder.buf.Reset()
 	if index, ok := mc.keyIndexMap[key]; ok {
 		mc.values[index].Value = value
-	} else {
-		mc.values = append(mc.values, Field{key, value})
-		mc.keyIndexMap[key] = mc.size
 		mc.encoder.AddAny(key, value)
-		mc.size++
+		mc.values[index].jsonValue.Store(mc.encoder.buf.String())
+	} else {
+		field := Field{key, value, atomic.Value{}}
+		mc.keyIndexMap[key] = len(mc.values)
+		mc.encoder.AddAny(key, value)
+		field.jsonValue.Store(mc.encoder.buf.String())
+		mc.values = append(mc.values, field)
 	}
 
 	mc.encoder.buf.Reset()
-	mc.encoder.buf.WriteByte('{')
-	for _, field := range mc.Fields() {
-		mc.encoder.AddAny(field.Key, field.Value)
-	}
-	mc.encoder.buf.WriteByte('}')
-	mc.jsonValue.Store(mc.encoder.buf.String())
-	mc.encoder.buf.Reset()
+	mc.rewriteJson()
 }
 
-func (mc *MappedContext) value(key string) any {
+func (mc *MappedContext) Value(key string) any {
 	if index, ok := mc.keyIndexMap[key]; ok {
 		return mc.values[index].Value
 	}
@@ -60,18 +58,42 @@ func (mc *MappedContext) value(key string) any {
 	return nil
 }
 
+func (mc *MappedContext) Values(callback func(key string, val any)) {
+	for _, field := range mc.values {
+		callback(field.Key, field.Value)
+	}
+}
+
+func (mc *MappedContext) ValuesAsJson() string {
+	return mc.jsonValue.Load().(string)
+}
+
 func (mc *MappedContext) clone() *MappedContext {
 	c := *mc
+
+	copyOfFields := make([]Field, len(mc.values))
+	for index, field := range mc.values {
+		copyOfFields[index] = field
+	}
+	c.values = copyOfFields
+
+	copyOfKeyIndexMap := make(map[string]int, len(mc.keyIndexMap))
+	for key, val := range mc.keyIndexMap {
+		copyOfKeyIndexMap[key] = val
+	}
+	c.keyIndexMap = copyOfKeyIndexMap
+
 	c.encoder = &jsonEncoder{buf: newBuffer()}
 	return &c
 }
 
-func (mc *MappedContext) ValuesAsText() string {
-	return ""
-}
-
-func (mc *MappedContext) ValuesAsJSON(filter Filter) string {
-	return mc.jsonValue.Load().(string)
+func (mc *MappedContext) rewriteJson() {
+	mc.encoder.buf.WriteByte('{')
+	for _, field := range mc.values {
+		mc.encoder.buf.WriteString(field.jsonValue.Load().(string))
+	}
+	mc.encoder.buf.WriteByte('}')
+	mc.jsonValue.Store(mc.encoder.buf.String())
 }
 
 func MappedContextFrom(ctx context.Context) *MappedContext {
@@ -102,20 +124,25 @@ func WithMappedContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, MappedContextKey, NewMappedContext())
 }
 
-func ToMappedContext(ctx context.Context, key string, value any) {
-	mc := MappedContextFrom(ctx)
+func WithValue(parent context.Context, key string, value any) context.Context {
+	ctx := WithMappedContext(parent)
+	val := ctx.Value(MappedContextKey)
 
-	if mc != nil {
-		mc.put(key, value)
+	if val != nil {
+		if mc, isMc := val.(*MappedContext); isMc {
+			mc.put(key, value)
+		}
 	}
+
+	return ctx
 }
 
-func FromMappedContext(ctx context.Context, key string) any {
+func ValueFrom(ctx context.Context, key string) any {
 	mc := MappedContextFrom(ctx)
 
 	if mc == nil {
 		return nil
 	}
 
-	return mc.value(key)
+	return mc.Value(key)
 }

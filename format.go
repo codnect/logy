@@ -37,7 +37,7 @@ func formatText(encoder *textEncoder, format string, record Record, console bool
 				name, l := getPlaceholderName(format[j+2:])
 
 				if mc != nil && name != "" {
-					val := mc.value(name)
+					val := mc.Value(name)
 					if val != nil {
 						encoder.AppendAny(val)
 					}
@@ -50,7 +50,7 @@ func formatText(encoder *textEncoder, format string, record Record, console bool
 				if mc != nil && name != "" {
 					encoder.AppendString(name)
 					encoder.buf.WriteByte('=')
-					val := mc.value(name)
+					val := mc.Value(name)
 					if val != nil {
 						encoder.AppendAny(val)
 					}
@@ -133,7 +133,7 @@ func formatJson(encoder *jsonEncoder, record Record, additionalFieldJson string)
 	if record.Context != nil {
 		mc := MappedContextFrom(record.Context)
 		encoder.addKey(mappedContextKey)
-		encoder.buf.WriteString(mc.ValuesAsJSON(nil))
+		encoder.buf.WriteString(mc.ValuesAsJson())
 	}
 
 	// additional fields
@@ -180,13 +180,25 @@ func abbreviateLoggerName(name string, targetLen int) string {
 	buf := newBuffer()
 	defer buf.Free()
 
-	rightMostDotIndex := strings.LastIndex(name, ".")
+	trimmed := 0
+	inDotState := true
+	inSlashState := false
 
-	if rightMostDotIndex == -1 {
+	rightMostDotIndex := strings.LastIndex(name, ".")
+	rightMostIndex := rightMostDotIndex
+
+	rightMostSlashIndex := strings.LastIndex(name, "/")
+	if rightMostIndex < rightMostSlashIndex {
+		rightMostIndex = rightMostSlashIndex
+		inSlashState = true
+		inDotState = false
+	}
+
+	if rightMostIndex == -1 {
 		return name
 	}
 
-	lastSegmentLen := inLen - rightMostDotIndex
+	lastSegmentLen := inLen - rightMostIndex
 
 	leftSegmentsTargetLen := targetLen - lastSegmentLen
 	if leftSegmentsTargetLen < 0 {
@@ -196,11 +208,8 @@ func abbreviateLoggerName(name string, targetLen int) string {
 	leftSegmentsLen := inLen - lastSegmentLen
 	maxPossibleTrim := leftSegmentsLen - leftSegmentsTargetLen
 
-	trimmed := 0
-	inDotState := true
-
 	i := 0
-	for ; i < rightMostDotIndex; i++ {
+	for ; i < rightMostIndex; i++ {
 		c := name[i]
 		if c == '.' {
 			if trimmed >= maxPossibleTrim {
@@ -208,10 +217,19 @@ func abbreviateLoggerName(name string, targetLen int) string {
 			}
 			buf.WriteByte(c)
 			inDotState = true
+		} else if c == '/' {
+			if trimmed >= maxPossibleTrim {
+				break
+			}
+			buf.WriteByte(c)
+			inSlashState = true
 		} else {
 			if inDotState {
 				buf.WriteByte(c)
 				inDotState = false
+			} else if inSlashState {
+				buf.WriteByte(c)
+				inSlashState = false
 			} else {
 				trimmed++
 			}

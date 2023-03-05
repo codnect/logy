@@ -1,6 +1,6 @@
 module github.com/procyon-projects/logy/benchmarks
 
-go 1.17
+go 1.18
 
 replace github.com/procyon-projects/logy => ../
 
