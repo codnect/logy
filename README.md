@@ -1,4 +1,3 @@
-
-![Logy Logo](https://user-images.githubusercontent.com/5354910/222968057-320994c1-e6dc-41c4-a1a2-d5e7e5f3631e.png)
+![Logy Logo](https://user-images.githubusercontent.com/5354910/222968939-fbeec318-2a7e-4b8d-8a24-8b29da9a1d0b.png)
 
 # Logy
