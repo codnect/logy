@@ -95,50 +95,9 @@ func (h *Handlers) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type ExcludedKeys []string
-
-func (ek *ExcludedKeys) UnmarshalJSON(data []byte) error {
-	var (
-		val     any
-		isArray bool
-	)
-
-	if data[0] == '[' || data[len(data)-1] == ']' {
-		val = make([]string, 0)
-		isArray = true
-	} else {
-		val = ""
-	}
-
-	if err := json.Unmarshal(data, &val); err != nil {
-		return err
-	}
-
-	if isArray {
-		*ek = ExcludedKeys{}
-		for _, item := range val.([]any) {
-			*ek = append(*ek, strings.TrimSpace(item.(string)))
-		}
-		return nil
-	}
-
-	items := strings.Split(val.(string), ",")
-	if len(items) == 0 {
-		return nil
-	}
-
-	*ek = ExcludedKeys{}
-	for _, item := range items {
-		*ek = append(*ek, strings.TrimSpace(item))
-	}
-
-	return nil
-}
-
 type JsonAdditionalFields map[string]any
 
 type JsonConfig struct {
-	ExcludeKeys      ExcludedKeys         `json:"exclude-keys" xml:"exclude-keys" yaml:"exclude-keys"`
 	AdditionalFields JsonAdditionalFields `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
 }
 

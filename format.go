@@ -145,10 +145,6 @@ func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 				break
 			}
 
-			if h.isExcluded(field.Key()) {
-				continue
-			}
-
 			if inCommaState {
 				encoder.buf.WriteByte(',')
 				inCommaState = false

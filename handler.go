@@ -45,14 +45,12 @@ type commonHandler struct {
 	level                atomic.Value
 	json                 atomic.Value
 	format               atomic.Value
-	excludedKeys         atomic.Value
 	isConsole            atomic.Value
 	additionalFields     atomic.Value
 	additionalFieldsJson atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
-	h.SetExcludedKeys([]string{})
 	h.SetAdditionalFields(JsonAdditionalFields{})
 	h.SetJsonEnabled(false)
 	h.additionalFieldsJson.Store("")
@@ -62,11 +60,9 @@ func (h *commonHandler) initializeHandler() {
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 	if jsonConfig != nil {
 		h.SetJsonEnabled(true)
-		h.SetExcludedKeys(jsonConfig.ExcludeKeys)
 		h.SetAdditionalFields(jsonConfig.AdditionalFields)
 	} else {
 		h.SetJsonEnabled(false)
-		h.SetExcludedKeys([]string{})
 		h.SetAdditionalFields(JsonAdditionalFields{})
 	}
 }
@@ -145,37 +141,6 @@ func (h *commonHandler) SetJsonEnabled(json bool) {
 
 func (h *commonHandler) JsonEnabled() bool {
 	return h.json.Load().(bool)
-}
-
-func (h *commonHandler) isExcluded(key string) bool {
-	excludedKeys := h.excludedKeys.Load().([]string)
-	if len(excludedKeys) == 0 {
-		return false
-	}
-
-	for _, excludedKey := range excludedKeys {
-		if excludedKey == key {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (h *commonHandler) SetExcludedKeys(excludedKeys []string) {
-	h.excludedKeys.Store(excludedKeys)
-}
-
-func (h *commonHandler) ExcludedKeys() []string {
-	excludedKeys := make([]string, 0)
-
-	keys := h.excludedKeys.Load().([]string)
-
-	for _, key := range keys {
-		excludedKeys = append(excludedKeys, key)
-	}
-
-	return excludedKeys
 }
 
 func (h *commonHandler) SetAdditionalFields(additionalFields JsonAdditionalFields) {
