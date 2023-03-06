@@ -83,9 +83,7 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder.buf = buf
 
 		buf.WriteByte('{')
-		//excludedKeys := h.excludedKeys.Load().(map[string]struct{})
-		additionalFieldsJson := h.additionalFieldsJson.Load().(string)
-		formatJson(encoder, record, additionalFieldsJson)
+		h.formatJson(encoder, record)
 
 		buf.WriteByte('}')
 		buf.WriteByte('\n')
@@ -95,7 +93,7 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder.buf = buf
 
 		format := h.format.Load().(string)
-		formatText(encoder, format, record, console)
+		h.formatText(encoder, format, record, console)
 
 		putTextEncoder(encoder)
 	}
@@ -149,25 +147,31 @@ func (h *commonHandler) JsonEnabled() bool {
 	return h.json.Load().(bool)
 }
 
-func (h *commonHandler) SetExcludedKeys(excludedKeys []string) {
-	if len(excludedKeys) != 0 {
-		excludedKeyMap := map[string]struct{}{}
-
-		for _, key := range excludedKeys {
-			excludedKeyMap[key] = struct{}{}
-		}
-
-		h.excludedKeys.Store(excludedKeyMap)
-	} else {
-		h.excludedKeys.Store(map[string]struct{}{})
+func (h *commonHandler) isExcluded(key string) bool {
+	excludedKeys := h.excludedKeys.Load().([]string)
+	if len(excludedKeys) == 0 {
+		return false
 	}
+
+	for _, excludedKey := range excludedKeys {
+		if excludedKey == key {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (h *commonHandler) SetExcludedKeys(excludedKeys []string) {
+	h.excludedKeys.Store(excludedKeys)
 }
 
 func (h *commonHandler) ExcludedKeys() []string {
 	excludedKeys := make([]string, 0)
-	excludedKeyMap := h.excludedKeys.Load().(map[string]struct{})
 
-	for key := range excludedKeyMap {
+	keys := h.excludedKeys.Load().([]string)
+
+	for _, key := range keys {
 		excludedKeys = append(excludedKeys, key)
 	}
 

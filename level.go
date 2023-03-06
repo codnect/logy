@@ -1,6 +1,9 @@
 package logy
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 type Level int
 
@@ -25,6 +28,14 @@ func (l Level) String() string {
 	default:
 		return "ERROR"
 	}
+}
+
+func (l *Level) MarshalJSON() ([]byte, error) {
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(l.String())
+	builder.WriteByte('"')
+	return []byte(builder.String()), nil
 }
 
 func (l *Level) UnmarshalJSON(data []byte) error {

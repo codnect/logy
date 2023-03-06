@@ -248,6 +248,8 @@ func (l *Logger) IsTraceEnabled() bool {
 }
 
 func (l *Logger) applyConfig(config *Config) {
+	l.includesCaller.Store(config.IncludeCaller)
+
 	if conf, exists := config.Package[l.name]; exists {
 		l.SetLevel(conf.Level)
 		l.prepareHandlers(conf.Handlers, conf.UseParentHandlers)
@@ -264,6 +266,7 @@ func (l *Logger) applyConfig(config *Config) {
 func (l *Logger) onConfigure(conf *Config) {
 	if l.name == RootLoggerName {
 		l.SetLevel(conf.Level)
+		l.includesCaller.Store(conf.IncludeCaller)
 		l.prepareHandlers(conf.Handlers, false)
 
 		for _, child := range l.children {
@@ -349,10 +352,10 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 
 		if isError {
 			l.includeStackTrace(depth+1, err, &record)
-		} else if false {
+		} else if l.shouldContainCaller() {
 			l.includeCaller(depth+1, &record)
 		}
-	} else if false {
+	} else if l.shouldContainCaller() {
 		l.includeCaller(depth+1, &record)
 	}
 
@@ -381,12 +384,17 @@ func (l *Logger) makeRecord(ctx context.Context, level Level, msg string) Record
 	return record
 }
 
+func (l *Logger) shouldContainCaller() bool {
+	return l.includesCaller.Load().(bool)
+}
+
 func (l *Logger) includeCaller(depth int, record *Record) {
 	stack := captureStacktrace(depth+1, stackTraceFirst)
 	defer stack.free()
 
 	frame, _ := stack.next()
 
+	record.Caller.defined = true
 	record.Caller.function = frame.Function
 	record.Caller.line = frame.Line
 	record.Caller.file = frame.File
@@ -419,9 +427,12 @@ func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
 
 	formatFrame(&buf, 0, frame)
 
-	record.Caller.function = frame.Function
-	record.Caller.line = frame.Line
-	record.Caller.file = frame.File
+	if l.shouldContainCaller() {
+		record.Caller.defined = true
+		record.Caller.function = frame.Function
+		record.Caller.line = frame.Line
+		record.Caller.file = frame.File
+	}
 
 	i := 1
 	for frame, more = stack.next(); more; frame, more = stack.next() {

@@ -17,7 +17,7 @@ var (
 	stackTraceKey    = "stack_trace"
 )
 
-func formatText(encoder *textEncoder, format string, record Record, console bool) {
+func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, console bool) {
 	mc := MappedContextFrom(record.Context)
 
 	i := 0
@@ -112,7 +112,7 @@ func appendLevelAsText(buf *buffer, level Level, console bool) {
 	}
 }
 
-func formatJson(encoder *jsonEncoder, record Record, additionalFieldJson string) {
+func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 	// timestamp
 	encoder.AddTime(timestampKey, record.Time)
 	// level
@@ -131,15 +131,41 @@ func formatJson(encoder *jsonEncoder, record Record, additionalFieldJson string)
 
 	// mapped context
 	if record.Context != nil {
-		mc := MappedContextFrom(record.Context)
+		//mc := MappedContextFrom(record.Context)
+
 		encoder.addKey(mappedContextKey)
-		encoder.buf.WriteString(mc.ValuesAsJson())
+		encoder.buf.WriteByte('{')
+
+		iterator := Values(record.Context)
+		inCommaState := false
+
+		for {
+			field, ok := iterator.Next()
+			if !ok {
+				break
+			}
+
+			if h.isExcluded(field.Key()) {
+				continue
+			}
+
+			if inCommaState {
+				encoder.buf.WriteByte(',')
+				inCommaState = false
+			}
+
+			encoder.buf.WriteString(field.AsJson())
+			inCommaState = true
+		}
+
+		//encoder.buf.WriteString(mc.ValuesAsJson())
 	}
 
 	// additional fields
-	if len(additionalFieldJson) != 0 {
+	additionalFieldsJson := h.additionalFieldsJson.Load().(string)
+	if len(additionalFieldsJson) != 0 {
 		encoder.buf.WriteByte(',')
-		encoder.buf.WriteString(additionalFieldJson)
+		encoder.buf.WriteString(additionalFieldsJson)
 	}
 }
 

@@ -8,9 +8,40 @@ import (
 const MappedContextKey = "logyMappedContext"
 
 type Field struct {
-	Key       string
-	Value     any
-	jsonValue atomic.Value
+	key       string
+	value     any
+	jsonValue string
+}
+
+func (f Field) Key() string {
+	return f.key
+}
+
+func (f Field) Value() any {
+	return f.value
+}
+
+func (f Field) AsJson() string {
+	return f.jsonValue
+}
+
+type Iterator struct {
+	fields  []Field
+	current int
+}
+
+func (i *Iterator) HasNext() bool {
+	return i.current < len(i.fields)
+}
+
+func (i *Iterator) Next() (Field, bool) {
+	if i.current >= len(i.fields) {
+		return Field{}, false
+	}
+
+	field := i.fields[i.current]
+	i.current++
+	return field, true
 }
 
 type MappedContext struct {
@@ -35,14 +66,16 @@ func (mc *MappedContext) Size() int {
 func (mc *MappedContext) put(key string, value any) {
 	mc.encoder.buf.Reset()
 	if index, ok := mc.keyIndexMap[key]; ok {
-		mc.values[index].Value = value
+		mc.values[index].value = value
 		mc.encoder.AddAny(key, value)
-		mc.values[index].jsonValue.Store(mc.encoder.buf.String())
+		mc.values[index].jsonValue = mc.encoder.buf.String()
 	} else {
-		field := Field{key, value, atomic.Value{}}
+		field := Field{key, value, ""}
+
 		mc.keyIndexMap[key] = len(mc.values)
 		mc.encoder.AddAny(key, value)
-		field.jsonValue.Store(mc.encoder.buf.String())
+		field.jsonValue = mc.encoder.buf.String()
+
 		mc.values = append(mc.values, field)
 	}
 
@@ -60,7 +93,7 @@ func (mc *MappedContext) Value(key string) any {
 
 func (mc *MappedContext) Values(callback func(key string, val any)) {
 	for _, field := range mc.values {
-		callback(field.Key, field.Value)
+		callback(field.Key(), field.Value())
 	}
 }
 
@@ -90,7 +123,7 @@ func (mc *MappedContext) clone() *MappedContext {
 func (mc *MappedContext) rewriteJson() {
 	mc.encoder.buf.WriteByte('{')
 	for _, field := range mc.values {
-		mc.encoder.buf.WriteString(field.jsonValue.Load().(string))
+		mc.encoder.buf.WriteString(field.jsonValue)
 	}
 	mc.encoder.buf.WriteByte('}')
 	mc.jsonValue.Store(mc.encoder.buf.String())
@@ -124,6 +157,16 @@ func WithMappedContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, MappedContextKey, NewMappedContext())
 }
 
+func PutValue(ctx context.Context, key string, val any) {
+	ctxVal := ctx.Value(MappedContextKey)
+
+	if ctxVal != nil {
+		if mc, isMc := ctxVal.(*MappedContext); isMc {
+			mc.put(key, val)
+		}
+	}
+}
+
 func WithValue(parent context.Context, key string, value any) context.Context {
 	ctx := WithMappedContext(parent)
 	val := ctx.Value(MappedContextKey)
@@ -145,4 +188,17 @@ func ValueFrom(ctx context.Context, key string) any {
 	}
 
 	return mc.Value(key)
+}
+
+func Values(ctx context.Context) *Iterator {
+	mc := MappedContextFrom(ctx)
+
+	if mc == nil {
+		return &Iterator{}
+	}
+
+	return &Iterator{
+		fields:  mc.values,
+		current: 0,
+	}
 }
