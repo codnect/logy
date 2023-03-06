@@ -60,7 +60,7 @@ func SetDefault(logger *Logger) {
 
 func New() *Logger {
 	rpc := make([]uintptr, 1)
-	runtime.Callers(1, rpc[:])
+	runtime.Callers(2, rpc[:])
 	frame, _ := runtime.CallersFrames(rpc).Next()
 
 	lastSlash := strings.LastIndexByte(frame.Function, '/')

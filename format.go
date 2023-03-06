@@ -131,10 +131,10 @@ func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 
 	// mapped context
 	if record.Context != nil {
-		//mc := MappedContextFrom(record.Context)
+		mc := MappedContextFrom(record.Context)
 
 		encoder.addKey(mappedContextKey)
-		encoder.buf.WriteByte('{')
+		/*encoder.buf.WriteByte('{')
 
 		iterator := Values(record.Context)
 		inCommaState := false
@@ -152,9 +152,9 @@ func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 
 			encoder.buf.WriteString(field.AsJson())
 			inCommaState = true
-		}
+		}*/
 
-		//encoder.buf.WriteString(mc.ValuesAsJson())
+		encoder.buf.WriteString(mc.ValuesAsJson())
 	}
 
 	// additional fields
