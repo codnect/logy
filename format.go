@@ -17,7 +17,7 @@ var (
 	stackTraceKey    = "stack_trace"
 )
 
-func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, console bool) {
+func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool) {
 	mc := MappedContextFrom(record.Context)
 
 	i := 0
@@ -30,9 +30,9 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'd': // date
 				encoder.AppendTime(record.Time)
 			case 'c': // logger
-				appendLoggerAsText(encoder.buf, record.LoggerName, console)
+				appendLoggerAsText(encoder.buf, record.LoggerName, color)
 			case 'p': // level
-				appendLevelAsText(encoder.buf, record.Level, console)
+				appendLevelAsText(encoder.buf, record.Level, color)
 			case 'x': // context value without key
 				name, l := getPlaceholderName(format[j+2:])
 
@@ -89,10 +89,10 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 	}
 }
 
-func appendLoggerAsText(buf *buffer, logger string, console bool) {
+func appendLoggerAsText(buf *buffer, logger string, color bool) {
 	loggerName := abbreviateLoggerName(logger, loggerTargetLen)
 
-	if console {
+	if color {
 		colorCyan.print(buf, loggerName)
 	} else {
 		buf.WriteString(loggerName)
@@ -101,11 +101,11 @@ func appendLoggerAsText(buf *buffer, logger string, console bool) {
 	buf.WritePadding(loggerTargetLen - len(loggerName))
 }
 
-func appendLevelAsText(buf *buffer, level Level, console bool) {
+func appendLevelAsText(buf *buffer, level Level, color bool) {
 	str := level.String()
 	buf.WritePadding(5 - len(str))
 
-	if console {
+	if color {
 		levelColors[level-1].print(buf, str)
 	} else {
 		buf.WriteString(str)
@@ -116,7 +116,7 @@ func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 	// timestamp
 	encoder.AddTime(timestampKey, record.Time)
 	// level
-	encoder.AddString(loggerKey, record.Level.String())
+	encoder.AddString(levelKey, record.Level.String())
 
 	// logger name
 	encoder.AddString(loggerKey, record.LoggerName)

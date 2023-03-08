@@ -2,12 +2,10 @@ package logy
 
 import (
 	"os"
-	"sync/atomic"
 )
 
 type ConsoleHandler struct {
 	commonHandler
-	color atomic.Value
 }
 
 func NewConsoleHandler() *ConsoleHandler {

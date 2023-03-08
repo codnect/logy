@@ -48,6 +48,7 @@ type commonHandler struct {
 	isConsole            atomic.Value
 	additionalFields     atomic.Value
 	additionalFieldsJson atomic.Value
+	color                atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
@@ -55,6 +56,7 @@ func (h *commonHandler) initializeHandler() {
 	h.SetJsonEnabled(false)
 	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
+	h.color.Store(false)
 }
 
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
@@ -73,6 +75,7 @@ func (h *commonHandler) Handle(record Record) error {
 
 	json := h.json.Load().(bool)
 	console := h.isConsole.Load().(bool)
+	color := h.color.Load().(bool)
 
 	if json {
 		encoder := getJSONEncoder()
@@ -89,7 +92,7 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder.buf = buf
 
 		format := h.format.Load().(string)
-		h.formatText(encoder, format, record, console)
+		h.formatText(encoder, format, record, console && color)
 
 		putTextEncoder(encoder)
 	}

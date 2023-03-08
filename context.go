@@ -21,9 +21,10 @@ func (f Field) Value() any {
 	return f.value
 }
 
+/*
 func (f Field) AsJson() string {
 	return f.jsonValue
-}
+}*/
 
 type Iterator struct {
 	fields  []Field
@@ -85,7 +86,7 @@ func (mc *MappedContext) put(key string, value any) {
 
 func (mc *MappedContext) Value(key string) any {
 	if index, ok := mc.keyIndexMap[key]; ok {
-		return mc.values[index].Value
+		return mc.values[index].Value()
 	}
 
 	return nil
@@ -122,8 +123,11 @@ func (mc *MappedContext) clone() *MappedContext {
 
 func (mc *MappedContext) rewriteJson() {
 	mc.encoder.buf.WriteByte('{')
-	for _, field := range mc.values {
+	for index, field := range mc.values {
 		mc.encoder.buf.WriteString(field.jsonValue)
+		if index != len(mc.values)-1 {
+			mc.encoder.buf.WriteByte(',')
+		}
 	}
 	mc.encoder.buf.WriteByte('}')
 	mc.jsonValue.Store(mc.encoder.buf.String())
