@@ -25,13 +25,8 @@ func newWriter(logger *Logger) *writer {
 }
 
 func (w *writer) Write(buf []byte) (n int, err error) {
-	if !w.logger.IsLoggable(LevelInfo) {
+	if !w.logger.IsLoggable(LevelDebug) {
 		return 0, nil
-	}
-
-	var depth int
-	if w.flags&(log.Lshortfile|log.Llongfile) != 0 {
-		depth = 2
 	}
 
 	origLen := len(buf)
@@ -39,5 +34,5 @@ func (w *writer) Write(buf []byte) (n int, err error) {
 		buf = buf[:len(buf)-1]
 	}
 
-	return origLen, w.logger.logDepth(depth, nil, LevelDebug, string(buf))
+	return origLen, w.logger.logDepth(3, nil, LevelDebug, string(buf))
 }

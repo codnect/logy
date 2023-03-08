@@ -37,24 +37,17 @@ type Logger struct {
 	includesCaller atomic.Value
 	handlers       map[string]Handler
 
-	parent   *Logger
-	children map[string]*Logger
+	parent    *Logger
+	children  map[string]*Logger
+	isDefault bool
 
 	mu sync.RWMutex
 }
 
-func Default() *Logger {
-	return defaultLogger.Load().(*Logger)
-}
-
-func SetDefault(logger *Logger) {
-	if logger == nil {
-		panic("logger cannot be nil")
-	}
-
-	defaultLogger.Store(logger)
-
-	log.SetOutput(newWriter(logger))
+func SetAsDefaultLogger() {
+	defaultLogger := newLogger("$$defaultLogger", LevelTrace, nil)
+	defaultLogger.isDefault = true
+	log.SetOutput(newWriter(defaultLogger))
 	log.SetFlags(0)
 }
 
@@ -359,7 +352,18 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 		l.includeCaller(depth+1, &record)
 	}
 
-	for _, handler := range l.handlers {
+	logHandlers := l.handlers
+
+	if l.isDefault {
+		if record.LoggerName == "" {
+			return nil
+		}
+
+		pkgLogger := getLogger(record.LoggerName, "")
+		logHandlers = pkgLogger.handlers
+	}
+
+	for _, handler := range logHandlers {
 		if handler.IsLoggable(record) {
 			err := handler.Handle(record)
 
@@ -381,11 +385,12 @@ func (l *Logger) makeRecord(ctx context.Context, level Level, msg string) Record
 		LoggerName: l.name,
 		Caller:     Caller{},
 	}
+
 	return record
 }
 
 func (l *Logger) shouldContainCaller() bool {
-	return l.includesCaller.Load().(bool)
+	return l.isDefault || l.includesCaller.Load().(bool)
 }
 
 func (l *Logger) includeCaller(depth int, record *Record) {
@@ -398,6 +403,10 @@ func (l *Logger) includeCaller(depth int, record *Record) {
 	record.Caller.function = frame.Function
 	record.Caller.line = frame.Line
 	record.Caller.file = frame.File
+
+	if l.isDefault {
+		record.LoggerName = record.Caller.Package()
+	}
 }
 
 func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
@@ -443,61 +452,61 @@ func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
 }
 
 func I(ctx context.Context, msg string, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelInfo, msg, args...)
+	_ = rootLogger.logDepth(1, ctx, LevelInfo, msg, args...)
 }
 
 func Info(msg string, args ...any) {
-	_ = Default().logDepth(1, nil, LevelInfo, msg, args...)
+	_ = rootLogger.logDepth(1, nil, LevelInfo, msg, args...)
 }
 
 func IsInfoEnabled() bool {
-	return Default().IsInfoEnabled()
+	return rootLogger.IsInfoEnabled()
 }
 
 func E(ctx context.Context, err error, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelError, err.Error(), args...)
+	_ = rootLogger.logDepth(1, ctx, LevelError, err.Error(), args...)
 }
 
 func Error(err error, args ...any) {
-	_ = Default().logDepth(1, nil, LevelError, err.Error(), args...)
+	_ = rootLogger.logDepth(1, nil, LevelError, err.Error(), args...)
 }
 
 func IsErrorEnabled() bool {
-	return Default().IsErrorEnabled()
+	return rootLogger.IsErrorEnabled()
 }
 
 func W(ctx context.Context, msg string, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelWarn, msg, args...)
+	_ = rootLogger.logDepth(1, ctx, LevelWarn, msg, args...)
 }
 
 func Warn(msg string, args ...any) {
-	_ = Default().logDepth(1, nil, LevelWarn, msg, args...)
+	_ = rootLogger.logDepth(1, nil, LevelWarn, msg, args...)
 }
 
 func IsWarnEnabled() bool {
-	return Default().IsWarnEnabled()
+	return rootLogger.IsWarnEnabled()
 }
 
 func D(ctx context.Context, msg string, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelDebug, msg, args...)
+	_ = rootLogger.logDepth(1, ctx, LevelDebug, msg, args...)
 }
 
 func Debug(msg string, args ...any) {
-	_ = Default().logDepth(1, nil, LevelDebug, msg, args...)
+	_ = rootLogger.logDepth(1, nil, LevelDebug, msg, args...)
 }
 
 func IsDebugEnabled() bool {
-	return Default().IsDebugEnabled()
+	return rootLogger.IsDebugEnabled()
 }
 
 func T(ctx context.Context, msg string, args ...any) {
-	_ = Default().logDepth(1, ctx, LevelTrace, msg, args...)
+	_ = rootLogger.logDepth(1, ctx, LevelTrace, msg, args...)
 }
 
 func Trace(msg string, args ...any) {
-	_ = Default().logDepth(1, nil, LevelTrace, msg, args...)
+	_ = rootLogger.logDepth(1, nil, LevelTrace, msg, args...)
 }
 
 func IsTraceEnabled() bool {
-	return Default().IsTraceEnabled()
+	return rootLogger.IsTraceEnabled()
 }
