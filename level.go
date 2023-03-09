@@ -2,6 +2,7 @@ package logy
 
 import (
 	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"strings"
 )
 
@@ -36,6 +37,27 @@ func (l *Level) MarshalJSON() ([]byte, error) {
 	builder.WriteString(l.String())
 	builder.WriteByte('"')
 	return []byte(builder.String()), nil
+}
+
+func (l *Level) MarshalYAML() (interface{}, error) {
+	return l.String(), nil
+}
+
+func (l *Level) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Value {
+	case "TRACE":
+		*l = LevelTrace
+	case "DEBUG":
+		*l = LevelDebug
+	case "INFO":
+		*l = LevelInfo
+	case "WARN":
+		*l = LevelWarn
+	case "ERROR":
+		*l = LevelError
+	}
+
+	return nil
 }
 
 func (l *Level) UnmarshalJSON(data []byte) error {

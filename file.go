@@ -42,21 +42,22 @@ func (h *FileHandler) createLogFile(dir, name string) (*os.File, error) {
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0755)
 }
 
-func (h *FileHandler) onConfigure(config *FileConfig) error {
-	h.SetEnabled(config.Enable)
-	h.SetLevel(config.Level)
-	h.SetFormat(config.Format)
+func (h *FileHandler) OnConfigure(config Config) error {
+	h.SetEnabled(config.File.Enable)
+	h.SetLevel(config.File.Level)
+	h.SetFormat(config.File.Format)
 
-	h.setFileName(config.Name)
-	h.setFilePath(config.Path)
+	h.setFileName(config.File.Name)
+	h.setFilePath(config.File.Path)
 
-	file, err := h.createLogFile(config.Path, config.Name)
+	file, err := h.createLogFile(config.File.Path, config.File.Name)
 	if err != nil {
+		h.SetEnabled(false)
 		return err
 	}
 
-	h.setWriter(file)
+	h.setWriter(newSyncWriter(file))
 
-	h.applyJsonConfig(config.Json)
+	h.applyJsonConfig(config.File.Json)
 	return nil
 }

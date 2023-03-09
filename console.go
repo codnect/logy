@@ -12,7 +12,7 @@ func NewConsoleHandler() *ConsoleHandler {
 	handler := &ConsoleHandler{}
 	handler.initializeHandler()
 
-	handler.SetTarget(TargetStderr)
+	handler.setTarget(TargetStderr)
 	handler.setWriter(os.Stderr)
 
 	handler.SetEnabled(true)
@@ -30,14 +30,14 @@ func (h *ConsoleHandler) IsColorEnabled() bool {
 	return h.color.Load().(bool)
 }
 
-func (h *ConsoleHandler) SetTarget(target Target) {
+func (h *ConsoleHandler) setTarget(target Target) {
 	switch target {
 	case TargetStdout:
 		h.target.Store(target)
-		h.setWriter(os.Stdout)
+		h.setWriter(newSyncWriter(os.Stdout))
 	case TargetStderr:
 		h.target.Store(target)
-		h.setWriter(os.Stdout)
+		h.setWriter(newSyncWriter(os.Stdout))
 	case TargetDiscard:
 		h.setWriter(&discarder{})
 		h.target.Store(target)
@@ -48,14 +48,14 @@ func (h *ConsoleHandler) Target() Target {
 	return h.target.Load().(Target)
 }
 
-func (h *ConsoleHandler) onConfigure(config *ConsoleConfig) error {
-	h.SetEnabled(config.Enable)
-	h.SetLevel(config.Level)
-	h.SetFormat(config.Format)
+func (h *ConsoleHandler) OnConfigure(config Config) error {
+	h.SetEnabled(config.Console.Enable)
+	h.SetLevel(config.Console.Level)
+	h.SetFormat(config.Console.Format)
 
-	h.SetTarget(config.Target)
-	h.SetColorEnabled(config.Color)
+	h.setTarget(config.Console.Target)
+	h.SetColorEnabled(config.Console.Color)
 
-	h.applyJsonConfig(config.Json)
+	h.applyJsonConfig(config.Console.Json)
 	return nil
 }

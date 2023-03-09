@@ -24,7 +24,7 @@ type Handler interface {
 }
 
 type ConfigurableHandler interface {
-	OnConfigure(properties ConfigProperties)
+	OnConfigure(config Config) error
 }
 
 func RegisterHandler(name string, handler Handler) {
@@ -38,6 +38,17 @@ func RegisterHandler(name string, handler Handler) {
 	handlers[name] = handler
 }
 
+func GetHandler(name string) (Handler, bool) {
+	defer handlerMu.Unlock()
+	handlerMu.Lock()
+
+	if handler, ok := handlers[name]; ok {
+		return handler, true
+	}
+
+	return nil, false
+}
+
 type commonHandler struct {
 	target               atomic.Value
 	writer               io.Writer
@@ -49,6 +60,14 @@ type commonHandler struct {
 	additionalFields     atomic.Value
 	additionalFieldsJson atomic.Value
 	color                atomic.Value
+
+	timestampKey     atomic.Value
+	mappedContextKey atomic.Value
+	levelKey         atomic.Value
+	loggerKey        atomic.Value
+	messageKey       atomic.Value
+	errorKey         atomic.Value
+	stackTraceKey    atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
@@ -57,16 +76,59 @@ func (h *commonHandler) initializeHandler() {
 	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
 	h.color.Store(false)
+
+	h.resetKeys()
+}
+
+func (h *commonHandler) resetKeys() {
+	h.timestampKey.Store(TimestampKey)
+	h.mappedContextKey.Store(MappedContextKey)
+	h.levelKey.Store(LevelKey)
+	h.loggerKey.Store(LoggerKey)
+	h.messageKey.Store(MessageKey)
+	h.errorKey.Store(ErrorKey)
+	h.stackTraceKey.Store(StackTraceKey)
+}
+
+func (h *commonHandler) overrideKeys(overrides KeyOverrides) {
+	if len(overrides) == 0 {
+		return
+	}
+
+	for key, value := range overrides {
+		switch key {
+		case TimestampKey:
+			h.timestampKey.Store(value)
+		case MappedContextKey:
+			h.mappedContextKey.Store(value)
+		case LevelKey:
+			h.levelKey.Store(value)
+		case LoggerKey:
+			h.loggerKey.Store(value)
+		case MessageKey:
+			h.messageKey.Store(value)
+		case ErrorKey:
+			h.errorKey.Store(value)
+		case StackTraceKey:
+			h.stackTraceKey.Store(value)
+		}
+	}
 }
 
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 	if jsonConfig != nil {
 		h.SetJsonEnabled(true)
 		h.SetAdditionalFields(jsonConfig.AdditionalFields)
+		h.overrideKeys(jsonConfig.KeyOverrides)
 	} else {
 		h.SetJsonEnabled(false)
 		h.SetAdditionalFields(JsonAdditionalFields{})
+		h.resetKeys()
 	}
+}
+
+func (h *commonHandler) Writer() io.Writer {
+	return h.writer
 }
 
 func (h *commonHandler) Handle(record Record) error {
@@ -142,7 +204,7 @@ func (h *commonHandler) SetJsonEnabled(json bool) {
 	h.json.Store(json)
 }
 
-func (h *commonHandler) JsonEnabled() bool {
+func (h *commonHandler) IsJsonEnabled() bool {
 	return h.json.Load().(bool)
 }
 

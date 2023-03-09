@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 )
 
-const MappedContextKey = "logyMappedContext"
+const ContextKey = "$logyMappedContext"
 
 type Field struct {
 	key       string

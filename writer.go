@@ -3,6 +3,7 @@ package logy
 import (
 	"io"
 	"log"
+	"sync"
 )
 
 type discarder struct {
@@ -10,6 +11,23 @@ type discarder struct {
 
 func (d *discarder) Write(p []byte) (n int, err error) {
 	return io.Discard.Write(p)
+}
+
+type syncWriter struct {
+	mu     sync.Mutex
+	writer io.Writer
+}
+
+func newSyncWriter(writer io.Writer) *syncWriter {
+	return &syncWriter{
+		writer: writer,
+	}
+}
+
+func (sw *syncWriter) Write(p []byte) (n int, err error) {
+	defer sw.mu.Unlock()
+	sw.mu.Lock()
+	return sw.Write(p)
 }
 
 type writer struct {

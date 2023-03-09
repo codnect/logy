@@ -12,5 +12,6 @@ type Record struct {
 	Context    context.Context
 	LoggerName string
 	StackTrace string
+	Error      error
 	Caller     Caller
 }

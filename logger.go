@@ -345,6 +345,7 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 
 		if isError {
 			l.includeStackTrace(depth+1, err, &record)
+			record.Error = err
 		} else if l.shouldContainCaller() {
 			l.includeCaller(depth+1, &record)
 		}

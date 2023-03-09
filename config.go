@@ -3,6 +3,7 @@ package logy
 import (
 	"encoding/json"
 	"errors"
+	"gopkg.in/yaml.v3"
 	"os"
 	"strings"
 	"sync"
@@ -95,9 +96,22 @@ func (h *Handlers) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (h *Handlers) UnmarshalYAML(node *yaml.Node) error {
+	if len(node.Content) != 0 {
+		*h = Handlers{}
+		for _, item := range node.Content {
+			*h = append(*h, strings.TrimSpace(item.Value))
+		}
+	}
+
+	return nil
+}
+
+type KeyOverrides map[string]string
 type JsonAdditionalFields map[string]any
 
 type JsonConfig struct {
+	KeyOverrides     KeyOverrides         `json:"key-overrides" xml:"key-overrides" yaml:"key-overrides"`
 	AdditionalFields JsonAdditionalFields `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
 }
 
@@ -197,6 +211,55 @@ func loadConfigFromEnv() {
 	_ = LoadConfig(cfg)
 }
 
+func LoadConfigFromYaml(name string) error {
+	yamlFile, err := os.ReadFile(name)
+	if err != nil {
+		return err
+	}
+
+	data := make(map[string]interface{})
+
+	err = yaml.Unmarshal(yamlFile, &data)
+	if err != nil {
+		return err
+	}
+
+	cfgMap := map[string]any{}
+
+	for key, value := range data {
+		if key == "logy" {
+			switch typed := value.(type) {
+			case map[string]any:
+				for propertyName, propertyValue := range typed {
+					cfgMap[propertyName] = propertyValue
+				}
+			}
+		}
+	}
+
+	cfg := &Config{
+		Package:          map[string]*PackageConfig{},
+		ExternalHandlers: map[string]ConfigProperties{},
+	}
+
+	byteData, _ := yaml.Marshal(cfgMap)
+
+	err = yaml.Unmarshal(byteData, &cfg)
+	if err != nil {
+		return err
+	}
+
+	for key, val := range cfgMap {
+		if isReservedPropertyKey(key) {
+			continue
+		}
+
+		cfg.ExternalHandlers[key] = val.(map[string]any)
+	}
+
+	return LoadConfig(cfg)
+}
+
 func LoadConfig(cfg *Config) error {
 	defer configMu.Unlock()
 	configMu.Lock()
@@ -294,6 +357,10 @@ func initializeConsoleConfig(cfg *Config) error {
 			cfg.Console.Level = config.Console.Level
 		}
 
+		if strings.TrimSpace(string(cfg.Console.Target)) == "" {
+			cfg.Console.Target = TargetStderr
+		}
+
 		if strings.TrimSpace(cfg.Console.Format) == "" {
 			cfg.Console.Format = config.Console.Format
 		}
@@ -343,64 +410,14 @@ func configureHandlers(config *Config) error {
 	defer handlerMu.Unlock()
 	handlerMu.Lock()
 
-	for name, handler := range handlers {
-		if name == "console" {
-			console, ok := handler.(*ConsoleHandler)
+	for _, handler := range handlers {
+		configurable, isConfigurable := handler.(ConfigurableHandler)
 
-			if !ok {
-				continue
-			}
-
-			err := console.onConfigure(config.Console)
-			if err != nil {
-				return err
-			}
-
+		if !isConfigurable {
 			continue
 		}
 
-		if name == "file" {
-			console, ok := handler.(*FileHandler)
-
-			if !ok {
-				continue
-			}
-
-			err := console.onConfigure(config.File)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		if cfg, ok := config.ExternalHandlers[name]; ok {
-			configurable, isConfigurable := handler.(ConfigurableHandler)
-
-			if !isConfigurable {
-				level, ok := cfg[PropertyLevel]
-
-				if ok {
-					switch level.(type) {
-					case int:
-						handler.SetLevel(Level(level.(int)))
-					}
-				}
-
-				var enabled any
-				enabled, ok = cfg[PropertyEnabled]
-				if ok {
-					switch enabled.(type) {
-					case bool:
-						handler.SetEnabled(enabled.(bool))
-					}
-				}
-
-				continue
-			}
-
-			configurable.OnConfigure(cfg)
-		}
+		_ = configurable.OnConfigure(*config)
 	}
 
 	return nil

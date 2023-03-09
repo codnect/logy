@@ -8,13 +8,14 @@ const (
 	loggerTargetLen = 40
 )
 
-var (
-	timestampKey     = "timestamp"
-	mappedContextKey = "mappedContext"
-	levelKey         = "level"
-	loggerKey        = "logger"
-	messageKey       = "message"
-	stackTraceKey    = "stack_trace"
+const (
+	TimestampKey     = "timestamp"
+	MappedContextKey = "mappedContext"
+	LevelKey         = "level"
+	LoggerKey        = "logger"
+	MessageKey       = "message"
+	ErrorKey         = "error"
+	StackTraceKey    = "stack_trace"
 )
 
 func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool) {
@@ -114,26 +115,31 @@ func appendLevelAsText(buf *buffer, level Level, color bool) {
 
 func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 	// timestamp
-	encoder.AddTime(timestampKey, record.Time)
+	encoder.AddTime(h.timestampKey.Load().(string), record.Time)
 	// level
-	encoder.AddString(levelKey, record.Level.String())
+	encoder.AddString(h.levelKey.Load().(string), record.Level.String())
 
 	// logger name
-	encoder.AddString(loggerKey, record.LoggerName)
+	encoder.AddString(h.loggerKey.Load().(string), record.LoggerName)
 
 	// message
-	encoder.AddString(messageKey, record.Message)
+	encoder.AddString(h.messageKey.Load().(string), record.Message)
 
 	if record.StackTrace != "" {
 		// stack trace
-		encoder.AddString(stackTraceKey, record.StackTrace)
+		encoder.AddString(h.stackTraceKey.Load().(string), record.StackTrace)
+	}
+
+	if record.Error != nil {
+		// error
+		encoder.AddString(h.errorKey.Load().(string), record.Error.Error())
 	}
 
 	// mapped context
 	if record.Context != nil {
 		mc := MappedContextFrom(record.Context)
 
-		encoder.addKey(mappedContextKey)
+		encoder.addKey(h.mappedContextKey.Load().(string))
 		/*encoder.buf.WriteByte('{')
 
 		iterator := Values(record.Context)
