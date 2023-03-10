@@ -49,7 +49,7 @@ func (h *ConsoleHandler) Target() Target {
 }
 
 func (h *ConsoleHandler) OnConfigure(config Config) error {
-	h.SetEnabled(config.Console.Enable)
+	h.SetEnabled(config.Console.Enabled)
 	h.SetLevel(config.Console.Level)
 	h.SetFormat(config.Console.Format)
 
