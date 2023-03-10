@@ -52,7 +52,7 @@ func (c logColor) print(buf *buffer, value string) {
 	}
 }
 
-func (c logColor) start(buf *[]byte) {
+func (c logColor) start(buf *buffer) {
 	if supportColor {
 		*buf = append(*buf, "\x1b["...)
 		*buf = append(*buf, c.String()...)
@@ -60,7 +60,7 @@ func (c logColor) start(buf *[]byte) {
 	}
 }
 
-func (c logColor) end(buf *[]byte) {
+func (c logColor) end(buf *buffer) {
 	if supportColor {
 		*buf = append(*buf, "\x1b[0m"...)
 	}

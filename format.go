@@ -91,15 +91,13 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 }
 
 func appendLoggerAsText(buf *buffer, logger string, color bool) {
-	loggerName := abbreviateLoggerName(logger, loggerTargetLen)
-
 	if color {
-		colorCyan.print(buf, loggerName)
+		colorCyan.start(buf)
+		abbreviateLoggerName(buf, logger, loggerTargetLen)
+		colorCyan.end(buf)
 	} else {
-		buf.WriteString(loggerName)
+		abbreviateLoggerName(buf, logger, loggerTargetLen)
 	}
-
-	buf.WritePadding(loggerTargetLen - len(loggerName))
 }
 
 func appendLevelAsText(buf *buffer, level Level, color bool) {
@@ -199,18 +197,18 @@ func getPlaceholderName(s string) (string, int) {
 	return s[:i], i
 }
 
-func abbreviateLoggerName(name string, targetLen int) string {
+func abbreviateLoggerName(buf *buffer, name string, targetLen int) {
 	inLen := len(name)
 	if inLen < targetLen {
-		return name
+		buf.WriteString(name)
+		buf.WritePadding(loggerTargetLen - inLen)
+		return
 	}
-
-	buf := newBuffer()
-	defer buf.Free()
 
 	trimmed := 0
 	inDotState := true
 	inSlashState := false
+	start := buf.Len()
 
 	rightMostDotIndex := strings.LastIndex(name, ".")
 	rightMostIndex := rightMostDotIndex
@@ -223,7 +221,9 @@ func abbreviateLoggerName(name string, targetLen int) string {
 	}
 
 	if rightMostIndex == -1 {
-		return name
+		buf.WriteString(name)
+		buf.WritePadding(loggerTargetLen - inLen)
+		return
 	}
 
 	lastSegmentLen := inLen - rightMostIndex
@@ -265,7 +265,8 @@ func abbreviateLoggerName(name string, targetLen int) string {
 	}
 
 	buf.WriteString(name[i:])
-	return buf.String()
+	end := buf.Len()
+	buf.WritePadding(loggerTargetLen - (end - start))
 }
 
 func isSpecialVar(c uint8) bool {
