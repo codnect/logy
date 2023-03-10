@@ -27,7 +27,7 @@ func newSyncWriter(writer io.Writer) *syncWriter {
 func (sw *syncWriter) Write(p []byte) (n int, err error) {
 	defer sw.mu.Unlock()
 	sw.mu.Lock()
-	return sw.Write(p)
+	return sw.writer.Write(p)
 }
 
 type writer struct {
