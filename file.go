@@ -43,7 +43,7 @@ func (h *FileHandler) createLogFile(dir, name string) (*os.File, error) {
 }
 
 func (h *FileHandler) OnConfigure(config Config) error {
-	h.SetEnabled(config.File.Enable)
+	h.SetEnabled(config.File.Enabled)
 	h.SetLevel(config.File.Level)
 	h.SetFormat(config.File.Format)
 

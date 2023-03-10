@@ -24,20 +24,20 @@ var (
 		IncludeCaller: false,
 		Handlers:      []string{"console"},
 		Console: &ConsoleConfig{
-			Enable: true,
-			Target: TargetStderr,
-			Format: defaultLogFormat,
-			Color:  true,
-			Level:  LevelDebug,
-			Json:   nil,
+			Enabled: true,
+			Target:  TargetStderr,
+			Format:  defaultLogFormat,
+			Color:   true,
+			Level:   LevelDebug,
+			Json:    nil,
 		},
 		File: &FileConfig{
-			Name:   defaultLogFileName,
-			Enable: false,
-			Path:   defaultLogFilePath,
-			Format: defaultLogFormat,
-			Level:  LevelDebug,
-			Json:   nil,
+			Name:    defaultLogFileName,
+			Enabled: false,
+			Path:    defaultLogFilePath,
+			Format:  defaultLogFormat,
+			Level:   LevelDebug,
+			Json:    nil,
 		},
 		Package:          map[string]*PackageConfig{},
 		ExternalHandlers: map[string]ConfigProperties{},
@@ -116,21 +116,21 @@ type JsonConfig struct {
 }
 
 type ConsoleConfig struct {
-	Enable bool        `json:"enable" xml:"enable" yaml:"enable"`
-	Target Target      `json:"target" xml:"target" yaml:"target"`
-	Format string      `json:"format" xml:"format" yaml:"format"`
-	Color  bool        `json:"color" xml:"color" yaml:"color"`
-	Level  Level       `json:"level" xml:"level" yaml:"level"`
-	Json   *JsonConfig `json:"json" xml:"json" yaml:"json"`
+	Enabled bool        `json:"enabled" xml:"enabled" yaml:"enabled"`
+	Target  Target      `json:"target" xml:"target" yaml:"target"`
+	Format  string      `json:"format" xml:"format" yaml:"format"`
+	Color   bool        `json:"color" xml:"color" yaml:"color"`
+	Level   Level       `json:"level" xml:"level" yaml:"level"`
+	Json    *JsonConfig `json:"json" xml:"json" yaml:"json"`
 }
 
 type FileConfig struct {
-	Name   string      `json:"name" xml:"name" yaml:"name"`
-	Enable bool        `json:"enable" xml:"enable" yaml:"enable"`
-	Path   string      `json:"path" xml:"path" yaml:"path"`
-	Format string      `json:"format" xml:"format" yaml:"format"`
-	Level  Level       `json:"level" xml:"level" yaml:"level"`
-	Json   *JsonConfig `json:"json" xml:"json" yaml:"json"`
+	Name    string      `json:"name" xml:"name" yaml:"name"`
+	Enabled bool        `json:"enabled" xml:"enabled" yaml:"enabled"`
+	Path    string      `json:"path" xml:"path" yaml:"path"`
+	Format  string      `json:"format" xml:"format" yaml:"format"`
+	Level   Level       `json:"level" xml:"level" yaml:"level"`
+	Json    *JsonConfig `json:"json" xml:"json" yaml:"json"`
 }
 
 type PackageConfig struct {
@@ -276,7 +276,7 @@ func LoadConfig(cfg *Config) error {
 		cfg.Handlers = config.Handlers
 	}
 
-	if cfg.File != nil && cfg.File.Enable {
+	if cfg.File != nil && cfg.File.Enabled {
 		fileHandlerExists := false
 		for _, handler := range cfg.Handlers {
 			if handler == "file" {
