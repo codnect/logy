@@ -71,6 +71,62 @@ const (
 	TargetDiscard
 )
 
+var (
+	targetValues = map[string]Target{
+		"stderr":  TargetStderr,
+		"stdout":  TargetStdout,
+		"discard": TargetDiscard,
+	}
+)
+
+func (t *Target) String() string {
+	switch *t {
+	case TargetStderr:
+		return "stderr"
+	case TargetStdout:
+		return "stdout"
+	default:
+		return "discard"
+	}
+}
+
+func (t *Target) MarshalJSON() ([]byte, error) {
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(t.String())
+	builder.WriteByte('"')
+	return []byte(builder.String()), nil
+}
+
+func (t *Target) MarshalYAML() (interface{}, error) {
+	return t.String(), nil
+}
+
+func (t *Target) UnmarshalJSON(data []byte) error {
+	var target string
+	if err := json.Unmarshal(data, &target); err != nil {
+		return err
+	}
+
+	if val, ok := targetValues[strings.ToLower(target)]; ok {
+		*t = val
+	} else {
+		*t = TargetDiscard
+	}
+
+	return nil
+}
+
+func (t *Target) UnmarshalYAML(node *yaml.Node) error {
+	if val, ok := targetValues[strings.ToLower(node.Value)]; ok {
+		*t = val
+	} else {
+		*t = TargetDiscard
+	}
+
+	return nil
+}
+
 type Protocol string
 
 const (
@@ -78,12 +134,110 @@ const (
 	ProtocolUDP Protocol = "udp"
 )
 
+func (p *Protocol) String() string {
+	return string(*p)
+}
+
+func (p *Protocol) MarshalJSON() ([]byte, error) {
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(p.String())
+	builder.WriteByte('"')
+	return []byte(builder.String()), nil
+}
+
+func (p *Protocol) MarshalYAML() (interface{}, error) {
+	return p.String(), nil
+}
+
+func (p *Protocol) UnmarshalJSON(data []byte) error {
+	var protocol string
+	if err := json.Unmarshal(data, &protocol); err != nil {
+		return err
+	}
+
+	switch strings.ToLower(protocol) {
+	case "udp":
+		*p = ProtocolUDP
+	default:
+		*p = ProtocolTCP
+	}
+
+	return nil
+}
+
+func (p *Protocol) UnmarshalYAML(node *yaml.Node) error {
+	switch strings.ToLower(node.Value) {
+	case "udp":
+		*p = ProtocolUDP
+	default:
+		*p = ProtocolTCP
+	}
+
+	return nil
+}
+
 type SysLogType int
 
 const (
 	RFC5424 SysLogType = iota + 1
 	RFC3164
 )
+
+var (
+	syslogTypes = map[string]SysLogType{
+		"rfc3164": RFC3164,
+		"rfc5424": RFC5424,
+	}
+)
+
+func (t *SysLogType) String() string {
+	switch *t {
+	case RFC3164:
+		return "rfc3164"
+	case RFC5424:
+		return "rfc5424"
+	default:
+		return ""
+	}
+}
+
+func (t *SysLogType) MarshalJSON() ([]byte, error) {
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(t.String())
+	builder.WriteByte('"')
+	return []byte(builder.String()), nil
+}
+
+func (t *SysLogType) MarshalYAML() (interface{}, error) {
+	return t.String(), nil
+}
+
+func (t *SysLogType) UnmarshalJSON(data []byte) error {
+	var typ string
+	if err := json.Unmarshal(data, &typ); err != nil {
+		return err
+	}
+
+	if val, ok := syslogTypes[strings.ToLower(typ)]; ok {
+		*t = val
+	} else {
+		*t = RFC5424
+	}
+
+	return nil
+}
+
+func (t *SysLogType) UnmarshalYAML(node *yaml.Node) error {
+	if val, ok := syslogTypes[strings.ToLower(node.Value)]; ok {
+		*t = val
+	} else {
+		*t = RFC5424
+	}
+
+	return nil
+}
 
 type Facility int
 
@@ -113,6 +267,59 @@ const (
 	FacilityLocalUse6
 	FacilityLocalUse7
 )
+
+var (
+	facilityValues = map[string]Facility{
+		"kernel":         FacilityKernel,
+		"user-level":     FacilityUserLevel,
+		"mail-system":    FacilityMailSystem,
+		"system-daemons": FacilitySystemDaemons,
+		"security":       FacilitySecurity,
+		"syslogd":        FacilitySyslogd,
+		"line-printer":   FacilityLinePrinter,
+		"network-news":   FacilityNetworkNews,
+		"uucp":           FacilityUUCP,
+		"clock-daemon":   FacilityClockDaemon,
+		"security2":      FacilitySecurity2,
+		"ftp-daemon":     FacilityFTPDaemon,
+		"ntp":            FacilityNTP,
+		"log-audit":      FacilityLogAudit,
+		"log-alert":      FacilityLogAlert,
+		"local-use-0":    FacilityLocalUse0,
+		"local-use-1":    FacilityLocalUse1,
+		"local-use-2":    FacilityLocalUse2,
+		"local-use-3":    FacilityLocalUse3,
+		"local-use-4":    FacilityLocalUse4,
+		"local-use-5":    FacilityLocalUse5,
+		"local-use-6":    FacilityLocalUse6,
+		"local-use-7":    FacilityLocalUse7,
+	}
+)
+
+func (f *Facility) UnmarshalJSON(data []byte) error {
+	var facility string
+	if err := json.Unmarshal(data, &facility); err != nil {
+		return err
+	}
+
+	if val, ok := facilityValues[strings.ToLower(facility)]; ok {
+		*f = val
+	} else {
+		*f = FacilityUserLevel
+	}
+
+	return nil
+}
+
+func (f *Facility) UnmarshalYAML(node *yaml.Node) error {
+	if val, ok := facilityValues[strings.ToLower(node.Value)]; ok {
+		*f = val
+	} else {
+		*f = FacilityUserLevel
+	}
+
+	return nil
+}
 
 type Handlers []string
 
@@ -216,7 +423,7 @@ type Config struct {
 	Handlers         Handlers                    `json:"handlers" xml:"handlers" yaml:"handlers"`
 	Console          *ConsoleConfig              `json:"console" xml:"console" yaml:"console"`
 	File             *FileConfig                 `json:"file" xml:"file" yaml:"file"`
-	Syslog           *SyslogConfig               `json:"syslog" xml:"syslog" yaml:"syslogÒ"`
+	Syslog           *SyslogConfig               `json:"syslog" xml:"syslog" yaml:"syslog"`
 	Package          map[string]*PackageConfig   `json:"package" xml:"package" yaml:"package"`
 	ExternalHandlers map[string]ConfigProperties `json:"-" xml:"-" yaml:"-"`
 }
