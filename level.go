@@ -21,6 +21,16 @@ const (
 
 type Level int
 
+var (
+	levelValues = map[string]Level{
+		"TRACE": LevelTrace,
+		"DEBUG": LevelDebug,
+		"INFO":  LevelInfo,
+		"WARN":  LevelWarn,
+		"ERROR": LevelError,
+	}
+)
+
 const (
 	LevelError Level = iota + 1
 	LevelWarn
@@ -72,39 +82,25 @@ func (l *Level) MarshalYAML() (interface{}, error) {
 }
 
 func (l *Level) UnmarshalYAML(node *yaml.Node) error {
-	switch node.Value {
-	case "TRACE":
+	if val, ok := levelValues[strings.ToUpper(node.Value)]; ok {
+		*l = val
+	} else {
 		*l = LevelTrace
-	case "DEBUG":
-		*l = LevelDebug
-	case "INFO":
-		*l = LevelInfo
-	case "WARN":
-		*l = LevelWarn
-	case "ERROR":
-		*l = LevelError
 	}
 
 	return nil
 }
 
 func (l *Level) UnmarshalJSON(data []byte) error {
-	var val string
-	if err := json.Unmarshal(data, &val); err != nil {
+	var level string
+	if err := json.Unmarshal(data, &level); err != nil {
 		return err
 	}
 
-	switch val {
-	case "TRACE":
+	if val, ok := levelValues[strings.ToUpper(level)]; ok {
+		*l = val
+	} else {
 		*l = LevelTrace
-	case "DEBUG":
-		*l = LevelDebug
-	case "INFO":
-		*l = LevelInfo
-	case "WARN":
-		*l = LevelWarn
-	case "ERROR":
-		*l = LevelError
 	}
 
 	return nil
