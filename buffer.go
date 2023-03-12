@@ -50,6 +50,10 @@ func (b *buffer) WriteTime(t time.Time) {
 	*b = t.AppendFormat(*b, time.RFC3339)
 }
 
+func (b *buffer) WriteTimeLayout(t time.Time, layout string) {
+	*b = t.AppendFormat(*b, layout)
+}
+
 func (b *buffer) WriteTimeAsString(t time.Time) {
 	year, month, day := t.Date()
 	b.WritePosIntWidth(year, 2)

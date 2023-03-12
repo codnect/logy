@@ -10,9 +10,13 @@ import (
 )
 
 const (
-	defaultLogFormat   = "%d %p %c : %m%s%n"
-	defaultLogFileName = "logy.log"
-	defaultLogFilePath = "."
+	DefaultTextFormat = "%d %p %c : %m%s%n"
+
+	DefaultLogFileName = "logy.log"
+	DefaultLogFilePath = "."
+
+	DefaultSyslogFormat   = "%d %p %m%s%n"
+	DefaultSyslogEndpoint = "localhost:514"
 
 	PropertyLevel   = "level"
 	PropertyEnabled = "enabled"
@@ -22,22 +26,33 @@ var (
 	config = &Config{
 		Level:         LevelInfo,
 		IncludeCaller: false,
-		Handlers:      []string{"console"},
+		Handlers:      []string{"syslog"},
 		Console: &ConsoleConfig{
 			Enabled: true,
 			Target:  TargetStderr,
-			Format:  defaultLogFormat,
+			Format:  DefaultTextFormat,
 			Color:   true,
 			Level:   LevelDebug,
 			Json:    nil,
 		},
 		File: &FileConfig{
-			Name:    defaultLogFileName,
+			Name:    DefaultLogFileName,
 			Enabled: false,
-			Path:    defaultLogFilePath,
-			Format:  defaultLogFormat,
+			Path:    DefaultLogFilePath,
+			Format:  DefaultTextFormat,
 			Level:   LevelDebug,
 			Json:    nil,
+		},
+		Syslog: &SyslogConfig{
+			Enabled:  false,
+			Endpoint: DefaultSyslogEndpoint,
+			AppName:  os.Args[0],
+			Hostname: "",
+			Facility: FacilityUserLevel,
+			LogType:  RFC5424,
+			Protocol: ProtocolTCP,
+			Format:   DefaultSyslogFormat,
+			Level:    LevelTrace,
 		},
 		Package:          map[string]*PackageConfig{},
 		ExternalHandlers: map[string]ConfigProperties{},
@@ -48,12 +63,55 @@ var (
 
 type ConfigProperties map[string]any
 
-type Target string
+type Target int
 
 const (
-	TargetStderr  Target = "stderr"
-	TargetStdout  Target = "stdout"
-	TargetDiscard Target = "discard"
+	TargetStderr Target = iota + 1
+	TargetStdout
+	TargetDiscard
+)
+
+type Protocol string
+
+const (
+	ProtocolTCP Protocol = "tcp"
+	ProtocolUDP Protocol = "udp"
+)
+
+type SysLogType int
+
+const (
+	RFC5424 SysLogType = iota + 1
+	RFC3164
+)
+
+type Facility int
+
+const (
+	FacilityKernel Facility = iota + 1
+	FacilityUserLevel
+	FacilityMailSystem
+	FacilitySystemDaemons
+	FacilitySecurity
+	FacilitySyslogd
+	FacilityLinePrinter
+	FacilityNetworkNews
+	FacilityUUCP
+	FacilityClockDaemon
+	FacilitySecurity2
+	FacilityFTPDaemon
+	FacilityNTP
+	FacilityLogAudit
+	FacilityLogAlert
+	FacilityClockDaemon2
+	FacilityLocalUse0
+	FacilityLocalUse1
+	FacilityLocalUse2
+	FacilityLocalUse3
+	FacilityLocalUse4
+	FacilityLocalUse5
+	FacilityLocalUse6
+	FacilityLocalUse7
 )
 
 type Handlers []string
@@ -133,6 +191,19 @@ type FileConfig struct {
 	Json    *JsonConfig `json:"json" xml:"json" yaml:"json"`
 }
 
+type SyslogConfig struct {
+	Enabled          bool       `json:"enabled" xml:"enabled" yaml:"enabled"`
+	Endpoint         string     `json:"endpoint" xml:"endpoint" yaml:"endpoint"`
+	AppName          string     `json:"app-name" xml:"app-name" yaml:"app-name"`
+	Hostname         string     `json:"hostname" xml:"hostname" yaml:"hostname"`
+	Facility         Facility   `json:"facility" xml:"facility" yaml:"facility"`
+	LogType          SysLogType `json:"log-type" xml:"log-type" yaml:"log-type"`
+	Protocol         Protocol   `json:"protocol" xml:"protocol" yaml:"protocol"`
+	Format           string     `json:"format" xml:"format" yaml:"format"`
+	Level            Level      `json:"level" xml:"level" yaml:"level"`
+	BlockOnReconnect bool       `json:"block-on-reconnect" xml:"block-on-reconnect" yaml:"block-on-reconnect"`
+}
+
 type PackageConfig struct {
 	Level             Level    `json:"level" xml:"level" yaml:"level"`
 	UseParentHandlers bool     `json:"use-parent-handlers" xml:"use-parent-handlers" yaml:"use-parent-handlers"`
@@ -145,6 +216,7 @@ type Config struct {
 	Handlers         Handlers                    `json:"handlers" xml:"handlers" yaml:"handlers"`
 	Console          *ConsoleConfig              `json:"console" xml:"console" yaml:"console"`
 	File             *FileConfig                 `json:"file" xml:"file" yaml:"file"`
+	Syslog           *SyslogConfig               `json:"syslog" xml:"syslog" yaml:"syslogÒ"`
 	Package          map[string]*PackageConfig   `json:"package" xml:"package" yaml:"package"`
 	ExternalHandlers map[string]ConfigProperties `json:"-" xml:"-" yaml:"-"`
 }
@@ -304,6 +376,11 @@ func LoadConfig(cfg *Config) error {
 		return err
 	}
 
+	err = initializeSyslogConfig(cfg)
+	if err != nil {
+		return err
+	}
+
 	config = cfg
 
 	err = configureHandlers(cfg)
@@ -386,10 +463,6 @@ func initializeFileConfig(cfg *Config) error {
 			cfg.File.Format = config.File.Format
 		}
 
-		if cfg.File.Level == 0 {
-			cfg.File.Level = config.File.Level
-		}
-
 		if cfg.File.Name == "" {
 			cfg.File.Name = config.File.Name
 		}
@@ -400,6 +473,47 @@ func initializeFileConfig(cfg *Config) error {
 
 		if cfg.File.Json == nil {
 			cfg.File.Json = config.File.Json
+		}
+	}
+
+	return nil
+}
+
+func initializeSyslogConfig(cfg *Config) error {
+
+	if cfg.Syslog == nil {
+		cfg.Syslog = config.Syslog
+	} else {
+		if cfg.Syslog.Level == 0 {
+			cfg.Syslog.Level = config.Syslog.Level
+		}
+
+		if strings.TrimSpace(cfg.Syslog.Format) == "" {
+			cfg.Syslog.Format = config.Syslog.Format
+		}
+
+		if cfg.Syslog.AppName == "" {
+			cfg.Syslog.AppName = config.Syslog.AppName
+		}
+
+		if cfg.Syslog.Hostname == "" {
+			cfg.Syslog.Hostname = config.Syslog.Hostname
+		}
+
+		if cfg.Syslog.Protocol == "" {
+			cfg.Syslog.Protocol = config.Syslog.Protocol
+		}
+
+		if cfg.Syslog.LogType == 0 {
+			cfg.Syslog.LogType = config.Syslog.LogType
+		}
+
+		if cfg.Syslog.Facility == 0 {
+			cfg.Syslog.Facility = config.Syslog.Facility
+		}
+
+		if cfg.Syslog.Endpoint == "" {
+			cfg.Syslog.Endpoint = config.Syslog.Endpoint
 		}
 	}
 

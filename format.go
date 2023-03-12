@@ -18,7 +18,7 @@ const (
 	StackTraceKey    = "stack_trace"
 )
 
-func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool) {
+func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool, noPadding bool) {
 	mc := MappedContextFrom(record.Context)
 
 	i := 0
@@ -31,7 +31,7 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'd': // date
 				encoder.AppendTime(record.Time)
 			case 'c': // logger
-				appendLoggerAsText(encoder.buf, record.LoggerName, color)
+				appendLoggerAsText(encoder.buf, record.LoggerName, color, noPadding)
 			case 'p': // level
 				appendLevelAsText(encoder.buf, record.Level, color)
 			case 'x': // context value without key
@@ -90,13 +90,13 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 	}
 }
 
-func appendLoggerAsText(buf *buffer, logger string, color bool) {
+func appendLoggerAsText(buf *buffer, logger string, color bool, noPadding bool) {
 	if color {
 		colorCyan.start(buf)
-		abbreviateLoggerName(buf, logger, loggerTargetLen)
+		abbreviateLoggerName(buf, logger, loggerTargetLen, noPadding)
 		colorCyan.end(buf)
 	} else {
-		abbreviateLoggerName(buf, logger, loggerTargetLen)
+		abbreviateLoggerName(buf, logger, loggerTargetLen, noPadding)
 	}
 }
 
@@ -197,11 +197,13 @@ func getPlaceholderName(s string) (string, int) {
 	return s[:i], i
 }
 
-func abbreviateLoggerName(buf *buffer, name string, targetLen int) {
+func abbreviateLoggerName(buf *buffer, name string, targetLen int, noPadding bool) {
 	inLen := len(name)
 	if inLen < targetLen {
 		buf.WriteString(name)
-		buf.WritePadding(loggerTargetLen - inLen)
+		if !noPadding {
+			buf.WritePadding(loggerTargetLen - inLen)
+		}
 		return
 	}
 
@@ -222,7 +224,9 @@ func abbreviateLoggerName(buf *buffer, name string, targetLen int) {
 
 	if rightMostIndex == -1 {
 		buf.WriteString(name)
-		buf.WritePadding(loggerTargetLen - inLen)
+		if !noPadding {
+			buf.WritePadding(loggerTargetLen - inLen)
+		}
 		return
 	}
 
@@ -266,7 +270,9 @@ func abbreviateLoggerName(buf *buffer, name string, targetLen int) {
 
 	buf.WriteString(name[i:])
 	end := buf.Len()
-	buf.WritePadding(loggerTargetLen - (end - start))
+	if !noPadding {
+		buf.WritePadding(loggerTargetLen - (end - start))
+	}
 }
 
 func isSpecialVar(c uint8) bool {
