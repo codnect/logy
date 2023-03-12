@@ -8,8 +8,9 @@ import (
 
 var (
 	handlers = map[string]Handler{
-		"console": NewConsoleHandler(),
-		"file":    NewFileHandler(),
+		"console": newConsoleHandler(),
+		"file":    newFileHandler(),
+		"syslog":  newSysLogHandler(),
 	}
 	handlerMu sync.RWMutex
 )
@@ -31,8 +32,8 @@ func RegisterHandler(name string, handler Handler) {
 	defer handlerMu.Unlock()
 	handlerMu.Lock()
 
-	if name == "console" || name == "file" {
-		panic("logy: 'console' and 'file' registers are reserved")
+	if name == "console" || name == "file" || name == "syslog" {
+		panic("logy: 'console', 'file' and 'syslog' handlers are reserved")
 	}
 
 	handlers[name] = handler
@@ -154,7 +155,7 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder.buf = buf
 
 		format := h.format.Load().(string)
-		h.formatText(encoder, format, record, console && color)
+		h.formatText(encoder, format, record, console && color, false)
 
 		putTextEncoder(encoder)
 	}

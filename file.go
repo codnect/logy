@@ -12,12 +12,13 @@ type FileHandler struct {
 	path atomic.Value
 }
 
-func NewFileHandler() *FileHandler {
+func newFileHandler() *FileHandler {
 	handler := &FileHandler{}
 	handler.initializeHandler()
 
 	handler.SetEnabled(false)
 	handler.SetLevel(LevelInfo)
+	handler.setWriter(&discarder{})
 	return handler
 }
 
@@ -53,6 +54,7 @@ func (h *FileHandler) OnConfigure(config Config) error {
 	file, err := h.createLogFile(config.File.Path, config.File.Name)
 	if err != nil {
 		h.SetEnabled(false)
+		h.setWriter(&discarder{})
 		return err
 	}
 

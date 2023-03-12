@@ -8,7 +8,7 @@ type ConsoleHandler struct {
 	commonHandler
 }
 
-func NewConsoleHandler() *ConsoleHandler {
+func newConsoleHandler() *ConsoleHandler {
 	handler := &ConsoleHandler{}
 	handler.initializeHandler()
 
@@ -41,6 +41,8 @@ func (h *ConsoleHandler) setTarget(target Target) {
 	case TargetDiscard:
 		h.setWriter(&discarder{})
 		h.target.Store(target)
+	default:
+		h.setWriter(&discarder{})
 	}
 }
 

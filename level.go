@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+type syslogLevel int
+
+const (
+	syslogLevelEmergency syslogLevel = iota
+	syslogLevelAlert
+	syslogLevelCritical
+	syslogLevelError
+	syslogLevelWarning
+	syslogLevelNotice
+	syslogLevelInformational
+	syslogLevelDebug
+)
+
 type Level int
 
 const (
@@ -15,6 +28,21 @@ const (
 	LevelDebug
 	LevelTrace
 )
+
+func (l Level) syslogLevel() syslogLevel {
+	switch l {
+	case LevelTrace:
+		return syslogLevelNotice
+	case LevelDebug:
+		return syslogLevelDebug
+	case LevelInfo:
+		return syslogLevelInformational
+	case LevelWarn:
+		return syslogLevelWarning
+	default:
+		return syslogLevelError
+	}
+}
 
 func (l Level) String() string {
 	switch l {
