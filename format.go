@@ -1,6 +1,7 @@
 package logy
 
 import (
+	"context"
 	"strings"
 )
 
@@ -18,6 +19,58 @@ const (
 	StackTraceKey    = "stack_trace"
 )
 
+func (h *commonHandler) formatContextValues(encoder *textEncoder, ctx context.Context, withKeys bool) {
+	iterator := IteratorFrom(ctx)
+	inCommaState := false
+
+	for {
+		field, ok := iterator.Next()
+		if !ok {
+			break
+		}
+
+		if inCommaState {
+			encoder.buf.WriteString(", ")
+			inCommaState = false
+		}
+
+		if withKeys {
+			encoder.buf.WriteString(field.Key())
+			encoder.buf.WriteByte('=')
+		}
+
+		encoder.buf.WriteString(field.ValueAsText())
+		inCommaState = true
+	}
+}
+
+func (h *commonHandler) formatContextValuesAsJson(encoder *jsonEncoder, ctx context.Context) {
+	iterator := IteratorFrom(ctx)
+	inCommaState := false
+
+	encoder.buf.WriteString("{")
+
+	for {
+		field, ok := iterator.Next()
+		if !ok {
+			break
+		}
+
+		if inCommaState {
+			encoder.buf.WriteByte(',')
+			inCommaState = false
+		}
+
+		jsonVal := field.AsJson()
+		if len(jsonVal) != 0 {
+			encoder.buf.WriteString(jsonVal[1 : len(jsonVal)-1])
+		}
+		inCommaState = true
+	}
+
+	encoder.buf.WriteString("}")
+}
+
 func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool, noPadding bool) {
 	mc := MappedContextFrom(record.Context)
 
@@ -29,7 +82,14 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 
 			switch typ {
 			case 'd': // date
-				encoder.AppendTime(record.Time)
+				layout, l := getPlaceholderName(format[j+2:])
+				if layout != "" {
+					encoder.AppendTimeLayout(record.Time, layout)
+				} else {
+					encoder.AppendTime(record.Time)
+				}
+
+				w = l + 1
 			case 'c': // logger
 				appendLoggerAsText(encoder.buf, record.LoggerName, color, noPadding)
 			case 'p': // level
@@ -37,10 +97,14 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'x': // context value without key
 				name, l := getPlaceholderName(format[j+2:])
 
-				if mc != nil && name != "" {
-					val := mc.Value(name)
-					if val != nil {
-						encoder.AppendAny(val)
+				if mc != nil {
+					if name != "" {
+						field, ok := mc.Field(name)
+						if ok {
+							encoder.buf.WriteString(field.ValueAsText())
+						}
+					} else {
+						h.formatContextValues(encoder, record.Context, false)
 					}
 				}
 
@@ -48,12 +112,16 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'X': // context value with key
 				name, l := getPlaceholderName(format[j+2:])
 
-				if mc != nil && name != "" {
-					encoder.AppendString(name)
-					encoder.buf.WriteByte('=')
-					val := mc.Value(name)
-					if val != nil {
-						encoder.AppendAny(val)
+				if mc != nil {
+					if name != "" {
+						field, ok := mc.Field(name)
+						if ok {
+							encoder.buf.WriteString(name)
+							encoder.buf.WriteByte('=')
+							encoder.buf.WriteString(field.ValueAsText())
+						}
+					} else {
+						h.formatContextValues(encoder, record.Context, true)
 					}
 				}
 
@@ -135,30 +203,8 @@ func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
 
 	// mapped context
 	if record.Context != nil {
-		mc := MappedContextFrom(record.Context)
-
 		encoder.addKey(h.mappedContextKey.Load().(string))
-		/*encoder.buf.WriteByte('{')
-
-		iterator := Values(record.Context)
-		inCommaState := false
-
-		for {
-			field, ok := iterator.Next()
-			if !ok {
-				break
-			}
-
-			if inCommaState {
-				encoder.buf.WriteByte(',')
-				inCommaState = false
-			}
-
-			encoder.buf.WriteString(field.AsJson())
-			inCommaState = true
-		}*/
-
-		encoder.buf.WriteString(mc.ValuesAsJson())
+		h.formatContextValuesAsJson(encoder, record.Context)
 	}
 
 	// additional fields

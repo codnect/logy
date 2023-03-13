@@ -13,8 +13,10 @@ var _jsonPool = sync.Pool{New: func() interface{} {
 	return &jsonEncoder{}
 }}
 
-func getJSONEncoder() *jsonEncoder {
-	return _jsonPool.Get().(*jsonEncoder)
+func getJSONEncoder(buf *buffer) *jsonEncoder {
+	encoder := _jsonPool.Get().(*jsonEncoder)
+	encoder.buf = buf
+	return encoder
 }
 
 func putJSONEncoder(enc *jsonEncoder) {
@@ -169,9 +171,19 @@ func (enc *jsonEncoder) AddTime(key string, val time.Time) {
 	enc.AppendTime(val)
 }
 
+func (enc *jsonEncoder) AddTimeLayout(key string, val time.Time, layout string) {
+	enc.addKey(key)
+	enc.AppendTimeLayout(val, layout)
+}
+
 func (enc *jsonEncoder) AddTimes(key string, val []time.Time) {
 	enc.addKey(key)
 	enc.AppendTimes(val)
+}
+
+func (enc *jsonEncoder) AddTimesLayout(key string, val []time.Time, layout string) {
+	enc.addKey(key)
+	enc.AppendTimesLayout(val, layout)
 }
 
 func (enc *jsonEncoder) AddDuration(key string, val time.Duration) {
@@ -578,6 +590,18 @@ func (enc *jsonEncoder) AppendTimes(arr []time.Time) {
 	enc.buf.WriteByte(']')
 }
 
+func (enc *jsonEncoder) AppendTimesLayout(arr []time.Time, layout string) {
+	enc.addElementSeparator()
+	enc.buf.WriteByte('[')
+	for i, item := range arr {
+		enc.AppendTimeLayout(item, layout)
+		if i != len(arr)-1 {
+			enc.buf.WriteByte(',')
+		}
+	}
+	enc.buf.WriteByte(']')
+}
+
 func (enc *jsonEncoder) AppendComplex64s(arr []complex64) {
 	enc.addElementSeparator()
 	enc.buf.WriteByte('[')
@@ -696,6 +720,13 @@ func (enc *jsonEncoder) AppendTime(t time.Time) {
 	enc.addElementSeparator()
 	enc.buf.WriteByte('"')
 	*enc.buf = t.AppendFormat(*enc.buf, time.RFC3339)
+	enc.buf.WriteByte('"')
+}
+
+func (enc *jsonEncoder) AppendTimeLayout(t time.Time, layout string) {
+	enc.addElementSeparator()
+	enc.buf.WriteByte('"')
+	*enc.buf = t.AppendFormat(*enc.buf, layout)
 	enc.buf.WriteByte('"')
 }
 

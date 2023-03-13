@@ -139,8 +139,7 @@ func (h *SyslogHandler) Handle(record Record) error {
 	buf := newBuffer()
 	defer buf.Free()
 
-	encoder := getTextEncoder()
-	encoder.buf = buf
+	encoder := getTextEncoder(buf)
 
 	syslogType := h.syslogType.Load().(SysLogType)
 	if syslogType == RFC3164 {

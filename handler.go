@@ -141,8 +141,7 @@ func (h *commonHandler) Handle(record Record) error {
 	color := h.color.Load().(bool)
 
 	if json {
-		encoder := getJSONEncoder()
-		encoder.buf = buf
+		encoder := getJSONEncoder(buf)
 
 		buf.WriteByte('{')
 		h.formatJson(encoder, record)
@@ -151,8 +150,7 @@ func (h *commonHandler) Handle(record Record) error {
 		buf.WriteByte('\n')
 		putJSONEncoder(encoder)
 	} else {
-		encoder := getTextEncoder()
-		encoder.buf = buf
+		encoder := getTextEncoder(buf)
 
 		format := h.format.Load().(string)
 		h.formatText(encoder, format, record, console && color, false)
@@ -217,17 +215,16 @@ func (h *commonHandler) SetAdditionalFields(additionalFields JsonAdditionalField
 	h.additionalFields.Store(additionalFields)
 
 	buf := newBuffer()
-	jsonEncoder := getJSONEncoder()
-	jsonEncoder.buf = buf
+	encoder := getJSONEncoder(buf)
 
 	for name, value := range additionalFields {
-		jsonEncoder.AddAny(name, value)
+		encoder.AddAny(name, value)
 	}
 
 	h.additionalFieldsJson.Store(buf.String())
 
 	buf.Free()
-	putJSONEncoder(jsonEncoder)
+	putJSONEncoder(encoder)
 }
 
 func (h *commonHandler) AdditionalFields() JsonAdditionalFields {

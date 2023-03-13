@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultTextFormat = "%d %p %c : %m%s%n"
+	DefaultTextFormat = "%d{2006-01-02 15:04:05.000000} %p %c : %m%s%n"
 
 	DefaultLogFileName = "logy.log"
 	DefaultLogFilePath = "."
@@ -26,7 +26,7 @@ var (
 	config = &Config{
 		Level:         LevelInfo,
 		IncludeCaller: false,
-		Handlers:      []string{"syslog"},
+		Handlers:      []string{"console"},
 		Console: &ConsoleConfig{
 			Enabled: true,
 			Target:  TargetStderr,
@@ -641,8 +641,8 @@ func initializeConsoleConfig(cfg *Config) error {
 			cfg.Console.Level = config.Console.Level
 		}
 
-		if strings.TrimSpace(string(cfg.Console.Target)) == "" {
-			cfg.Console.Target = TargetStderr
+		if cfg.Console.Target == 0 {
+			cfg.Console.Target = config.Console.Target
 		}
 
 		if strings.TrimSpace(cfg.Console.Format) == "" {
