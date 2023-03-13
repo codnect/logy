@@ -26,7 +26,7 @@ var (
 	config = &Config{
 		Level:         LevelInfo,
 		IncludeCaller: false,
-		Handlers:      []string{"console"},
+		Handlers:      []string{ConsoleHandlerName},
 		Console: &ConsoleConfig{
 			Enabled: true,
 			Target:  TargetStderr,

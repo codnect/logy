@@ -6,11 +6,17 @@ import (
 	"sync/atomic"
 )
 
+const (
+	ConsoleHandlerName = "console"
+	FileHandlerName    = "file"
+	SyslogHandlerName  = "syslog"
+)
+
 var (
 	handlers = map[string]Handler{
-		"console": newConsoleHandler(),
-		"file":    newFileHandler(),
-		"syslog":  newSysLogHandler(),
+		ConsoleHandlerName: newConsoleHandler(),
+		FileHandlerName:    newFileHandler(),
+		SyslogHandlerName:  newSysLogHandler(),
 	}
 	handlerMu sync.RWMutex
 )
@@ -32,7 +38,7 @@ func RegisterHandler(name string, handler Handler) {
 	defer handlerMu.Unlock()
 	handlerMu.Lock()
 
-	if name == "console" || name == "file" || name == "syslog" {
+	if name == ConsoleHandlerName || name == FileHandlerName || name == SyslogHandlerName {
 		panic("logy: 'console', 'file' and 'syslog' handlers are reserved")
 	}
 
