@@ -2,6 +2,8 @@ package logy
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -17,6 +19,11 @@ const (
 	MessageKey       = "message"
 	ErrorKey         = "error"
 	StackTraceKey    = "stack_trace"
+)
+
+var (
+	processId   = os.Getpid()
+	processName = filepath.Base(os.Args[0])
 )
 
 func (h *commonHandler) formatContextValues(encoder *textEncoder, ctx context.Context, withKeys bool) {
@@ -83,6 +90,7 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			switch typ {
 			case 'd': // date
 				layout, l := getPlaceholderName(format[j+2:])
+
 				if layout != "" {
 					encoder.AppendTimeLayout(record.Time, layout)
 				} else {
@@ -126,7 +134,14 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 				}
 
 				w = l + 1
-			case 'm': // message
+			case 'm': // full message
+				encoder.AppendString(record.Message)
+
+				if record.StackTrace != "" {
+					encoder.buf.WriteByte('\n')
+					encoder.buf.WriteString(strings.ReplaceAll(record.StackTrace, "\\n", "\n"))
+				}
+			case 's': // simple message
 				encoder.AppendString(record.Message)
 			case 'M': // method
 				encoder.AppendString(record.Caller.Name())
@@ -138,11 +153,15 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 				encoder.AppendString(record.Caller.Package())
 			case 'l': // location
 				encoder.AppendString(record.Caller.Path())
-			case 's': // stack trace if exist
+			case 'e': // stack trace if exist
 				if record.StackTrace != "" {
 					encoder.buf.WriteByte('\n')
 					encoder.buf.WriteString(strings.ReplaceAll(record.StackTrace, "\\n", "\n"))
 				}
+			case 'i': // process id
+				encoder.buf.WritePosIntWidth(processId, 4)
+			case 'N': // process name
+				encoder.AppendString(processName)
 			case 'n': // newline
 				encoder.buf.WriteByte('\n')
 			default:
