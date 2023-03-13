@@ -294,8 +294,7 @@ func (l *Logger) expandMessage(msg string, args ...any) (string, int) {
 	buf := newBuffer()
 	defer buf.Free()
 
-	encoder := getTextEncoder()
-	encoder.buf = buf
+	encoder := getTextEncoder(buf)
 
 	i := 0
 	argIndex := 0

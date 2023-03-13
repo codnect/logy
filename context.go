@@ -2,7 +2,6 @@ package logy
 
 import (
 	"context"
-	"sync/atomic"
 )
 
 const ContextKey = "$logyMappedContext"
@@ -10,6 +9,7 @@ const ContextKey = "$logyMappedContext"
 type Field struct {
 	key       string
 	value     any
+	textValue string
 	jsonValue string
 }
 
@@ -21,10 +21,13 @@ func (f Field) Value() any {
 	return f.value
 }
 
-/*
+func (f Field) ValueAsText() string {
+	return f.textValue
+}
+
 func (f Field) AsJson() string {
 	return f.jsonValue
-}*/
+}
 
 type Iterator struct {
 	fields  []Field
@@ -46,17 +49,20 @@ func (i *Iterator) Next() (Field, bool) {
 }
 
 type MappedContext struct {
-	values       []Field
-	keyIndexMap  map[string]int
-	encoder      *jsonEncoder
-	jsonValue    atomic.Value
-	contextIndex int
+	values      []Field
+	keyIndexMap map[string]int
+	textEncoder *textEncoder
+	jsonEncoder *jsonEncoder
 }
 
 func NewMappedContext() *MappedContext {
-	mc := &MappedContext{values: []Field{}, encoder: &jsonEncoder{}, keyIndexMap: map[string]int{}}
-	mc.encoder.buf = newBuffer()
-	mc.jsonValue.Store("{}")
+	mc := &MappedContext{
+		values:      []Field{},
+		textEncoder: getTextEncoder(newBuffer()),
+		jsonEncoder: getJSONEncoder(newBuffer()),
+		keyIndexMap: map[string]int{},
+	}
+
 	return mc
 }
 
@@ -64,42 +70,63 @@ func (mc *MappedContext) Size() int {
 	return len(mc.values)
 }
 
-func (mc *MappedContext) put(key string, value any) {
-	mc.encoder.buf.Reset()
+func (mc *MappedContext) resetEncoders() {
+	mc.textEncoder.buf.Reset()
+	mc.jsonEncoder.buf.Reset()
+}
+
+func (mc *MappedContext) putText(index int, value any) {
+	mc.textEncoder.AppendAny(value)
+	mc.values[index].textValue = mc.textEncoder.buf.String()
+}
+
+func (mc *MappedContext) putJson(index int, key string, value any) {
+	mc.jsonEncoder.buf.WriteByte('{')
+	mc.jsonEncoder.AddAny(key, value)
+	mc.jsonEncoder.buf.WriteByte('}')
+	mc.values[index].jsonValue = mc.jsonEncoder.buf.String()
+}
+
+func (mc *MappedContext) Put(key string, value any) {
+	mc.clone()
+	mc.resetEncoders()
+
 	if index, ok := mc.keyIndexMap[key]; ok {
 		mc.values[index].value = value
-		mc.encoder.AddAny(key, value)
-		mc.values[index].jsonValue = mc.encoder.buf.String()
+		mc.putText(index, value)
+		mc.putJson(index, key, value)
 	} else {
-		field := Field{key, value, ""}
+		field := Field{
+			key,
+			value,
+			"",
+			"",
+		}
 
-		mc.keyIndexMap[key] = len(mc.values)
-		mc.encoder.AddAny(key, value)
-		field.jsonValue = mc.encoder.buf.String()
-
+		index := len(mc.values)
+		mc.keyIndexMap[key] = index
 		mc.values = append(mc.values, field)
+
+		mc.putText(index, value)
+		mc.putJson(index, key, value)
 	}
 
-	mc.encoder.buf.Reset()
-	mc.rewriteJson()
+	mc.resetEncoders()
 }
 
-func (mc *MappedContext) Value(key string) any {
+func (mc *MappedContext) Field(key string) (Field, bool) {
 	if index, ok := mc.keyIndexMap[key]; ok {
-		return mc.values[index].Value()
+		return mc.values[index], true
 	}
 
-	return nil
+	return Field{}, false
 }
 
-func (mc *MappedContext) Values(callback func(key string, val any)) {
-	for _, field := range mc.values {
-		callback(field.Key(), field.Value())
+func (mc *MappedContext) Iterator() *Iterator {
+	return &Iterator{
+		fields:  mc.values,
+		current: 0,
 	}
-}
-
-func (mc *MappedContext) ValuesAsJson() string {
-	return mc.jsonValue.Load().(string)
 }
 
 func (mc *MappedContext) clone() *MappedContext {
@@ -117,20 +144,9 @@ func (mc *MappedContext) clone() *MappedContext {
 	}
 	c.keyIndexMap = copyOfKeyIndexMap
 
-	c.encoder = &jsonEncoder{buf: newBuffer()}
+	c.textEncoder = getTextEncoder(newBuffer())
+	c.jsonEncoder = getJSONEncoder(newBuffer())
 	return &c
-}
-
-func (mc *MappedContext) rewriteJson() {
-	mc.encoder.buf.WriteByte('{')
-	for index, field := range mc.values {
-		mc.encoder.buf.WriteString(field.jsonValue)
-		if index != len(mc.values)-1 {
-			mc.encoder.buf.WriteByte(',')
-		}
-	}
-	mc.encoder.buf.WriteByte('}')
-	mc.jsonValue.Store(mc.encoder.buf.String())
 }
 
 func MappedContextFrom(ctx context.Context) *MappedContext {
@@ -138,7 +154,7 @@ func MappedContextFrom(ctx context.Context) *MappedContext {
 		return nil
 	}
 
-	val := ctx.Value(MappedContextKey)
+	val := ctx.Value(ContextKey)
 
 	if val != nil {
 		if mc, isMc := val.(*MappedContext); isMc {
@@ -155,46 +171,47 @@ func WithMappedContext(ctx context.Context) context.Context {
 	mc := MappedContextFrom(ctx)
 
 	if mc != nil {
-		return context.WithValue(ctx, MappedContextKey, mc.clone())
+		return context.WithValue(ctx, ContextKey, mc.clone())
 	}
 
-	return context.WithValue(ctx, MappedContextKey, NewMappedContext())
+	return context.WithValue(ctx, ContextKey, NewMappedContext())
 }
 
 func PutValue(ctx context.Context, key string, val any) {
-	ctxVal := ctx.Value(MappedContextKey)
+	ctxVal := ctx.Value(ContextKey)
 
 	if ctxVal != nil {
 		if mc, isMc := ctxVal.(*MappedContext); isMc {
-			mc.put(key, val)
+			mc.Put(key, val)
 		}
 	}
 }
 
 func WithValue(parent context.Context, key string, value any) context.Context {
 	ctx := WithMappedContext(parent)
-	val := ctx.Value(MappedContextKey)
+	val := ctx.Value(ContextKey)
 
 	if val != nil {
 		if mc, isMc := val.(*MappedContext); isMc {
-			mc.put(key, value)
+			mc.Put(key, value)
 		}
 	}
 
 	return ctx
 }
 
-func ValueFrom(ctx context.Context, key string) any {
+func ValueFrom(ctx context.Context, key string) (any, bool) {
 	mc := MappedContextFrom(ctx)
 
 	if mc == nil {
-		return nil
+		return nil, false
 	}
 
-	return mc.Value(key)
+	field, ok := mc.Field(key)
+	return field.Value(), ok
 }
 
-func Values(ctx context.Context) *Iterator {
+func IteratorFrom(ctx context.Context) *Iterator {
 	mc := MappedContextFrom(ctx)
 
 	if mc == nil {

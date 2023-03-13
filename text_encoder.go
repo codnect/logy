@@ -12,8 +12,10 @@ var _textPool = sync.Pool{New: func() interface{} {
 	return &textEncoder{jsonEncoder: &jsonEncoder{}}
 }}
 
-func getTextEncoder() *textEncoder {
-	return _textPool.Get().(*textEncoder)
+func getTextEncoder(buf *buffer) *textEncoder {
+	encoder := _textPool.Get().(*textEncoder)
+	encoder.buf = buf
+	return encoder
 }
 
 func putTextEncoder(enc *textEncoder) {
@@ -350,6 +352,17 @@ func (enc *textEncoder) AppendTimes(arr []time.Time) {
 	enc.buf.WriteByte(']')
 }
 
+func (enc *textEncoder) AppendTimesLayout(arr []time.Time, layout string) {
+	enc.buf.WriteByte('[')
+	for i, item := range arr {
+		enc.AppendTimeLayout(item, layout)
+		if i != len(arr)-1 {
+			enc.buf.WriteByte(',')
+		}
+	}
+	enc.buf.WriteByte(']')
+}
+
 func (enc *textEncoder) AppendDurations(arr []time.Duration) {
 	enc.buf.WriteByte('[')
 	for i, item := range arr {
@@ -439,6 +452,10 @@ func (enc *textEncoder) AppendTime(t time.Time) {
 
 	enc.buf.WriteByte('.')
 	enc.buf.WritePosIntWidth(t.Nanosecond()/1e3, 6)
+}
+
+func (enc *textEncoder) AppendTimeLayout(t time.Time, layout string) {
+	enc.buf.WriteTimeLayout(t, layout)
 }
 
 func (enc *textEncoder) AppendDuration(val time.Duration) {

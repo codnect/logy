@@ -75,7 +75,9 @@ type ArrayEncoder interface {
 	AppendComplex128s([]complex128)
 
 	AppendTime(time.Time)
+	AppendTimeLayout(time.Time, string)
 	AppendTimes([]time.Time)
+	AppendTimesLayout([]time.Time, string)
 	AppendDuration(time.Duration)
 	AppendDurations([]time.Duration)
 }
@@ -136,7 +138,9 @@ type ObjectEncoder interface {
 	AddErrors(key string, val []error)
 
 	AddTime(key string, value time.Time)
+	AddTimeLayout(key string, value time.Time, layout string)
 	AddTimes(key string, val []time.Time)
+	AddTimesLayout(key string, val []time.Time, layout string)
 
 	AddDuration(key string, value time.Duration)
 	AddDurations(key string, val []time.Duration)
