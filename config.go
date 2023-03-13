@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultTextFormat = "%d{2006-01-02 15:04:05.000000} %p %c : %m%s%n"
+	DefaultTextFormat = "%d{2006-01-02 15:04:05.000000} %p %c : %m%n"
 
 	DefaultLogFileName = "logy.log"
 	DefaultLogFilePath = "."
@@ -25,7 +25,7 @@ const (
 var (
 	config = &Config{
 		Level:         LevelInfo,
-		IncludeCaller: false,
+		IncludeCaller: true,
 		Handlers:      []string{ConsoleHandlerName},
 		Console: &ConsoleConfig{
 			Enabled: true,
