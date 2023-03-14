@@ -10,6 +10,17 @@ The Logy package provides a fast and simple logger.
 go get -u github.com/procyon-projects/logy
 ```
 
+## Enabling Logging for your application
+
+Logy comes with three different loggers: **Package**, **Named** and **Type**.
+
+
+### Package Logger
+
+### Named Logger
+
+### Type Logger
+
 ## Logging Format
 
 By default, Logy uses a pattern-based logging format.
@@ -27,7 +38,7 @@ Supported logging format symbols:
 | `%%`                |                `%`                 |                                           A simple `%%`character                                           |
 | `%c`                |            Logger name             |                                              The logger name                                               |
 | `%C`                |            Package name            |                                              The package name                                              |
-| `%d{layout}`        |                date                |                                     Date with the given layout string                                      |
+| `%d{layout}`        |                Date                |                                     Date with the given layout string                                      |
 | `%e`                |               Error                |                                           The error stack trace                                            |
 | `%F`                |            Source file             |                                            The source file name                                            |
 | `%i`                |             Process ID             |                                          The current process PID                                           |
@@ -36,6 +47,7 @@ Supported logging format symbols:
 | `%m`                |            Full Message            |                                   The log message including error trace                                    |
 | `%M`                |           Source method            |                                           The source method name                                           |
 | `%n`                |              Newline               |                                         The line separator string                                          |
+| `%N`                |            Process name            |                                      The name of the current process                                       |
 | `%p`                |               Level                |                                      The logging level of the message                                      |
 | `%s`                |           Simple message           |                                    The log message without error trace                                     |
 | `%X{property-name}` |        Mapped Context Value        |                        The value from Mapped Context  `property-key=property-value`                        |
@@ -43,11 +55,56 @@ Supported logging format symbols:
 | `%X`                |       Mapped Context Values        | All the values from Mapped Context in format `property-key1=property-value1,property-key2=property-value2` |
 | `%x`                | Mapped Context Values without keys |        All the values without keys from Mapped Context in format `property-value1,property-value2`         |
 
+## Console Logging Properties
+You can configure the console handler with the following configuration properties:
+
+| Property                                              |                                         Description                                         |                                         Type |                   Default                    |
+|:------------------------------------------------------|:-------------------------------------------------------------------------------------------:|---------------------------------------------:|:--------------------------------------------:|
+| `logy.console.enabled`                                |                                 Enable the console logging                                  |                                         bool |                    `true`                    |
+| `logy.console.target`                                 |                              Override keys with custom values                               |        Target(`stdout`, `stderr`, `discard`) |                   `stdout`                   |
+| `logy.console.format`                                 | The console log format. Note that this value will be ignored if json is enabled for console |                                       string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
+| `logy.console.color`                                  |                Enable color coded output if the target terminal supports it                 |                                         bool |                    `true`                    |
+| `logy.console.level`                                  |                                    The console log level                                    | Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
+| `logy.console.json.enabled`                           |                             Enable the JSON console formatting                              |                                         bool |                   `false`                    |
+| `logy.console.json.key-overrides`.`property-name`     |                              Override keys with custom values                               |                            map[string]string |                                              |
+| `logy.console.json.additional-fields`.`property-name` |                                   Additional field values                                   |                               map[string]any |                                              |
+
+## File Logging Properties
+You can configure the file handler with the following configuration properties:
+
+| Property                                           |                                      Description                                      |                                         Type |                   Default                    |
+|:---------------------------------------------------|:-------------------------------------------------------------------------------------:|---------------------------------------------:|:--------------------------------------------:|
+| `logy.file.enabled`                                |                                Enable the file logging                                |                                         bool |                   `false`                    |
+| `logy.file.format`                                 | The file log format. Note that this value will be ignored if json is enabled for file |                                       string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
+| `logy.file.name`                                   |                  The name of the file in which logs will be written                   |                                       string |                  `logy.log`                  |
+| `logy.file.path`                                   |                  The path of the file in which logs will be written                   |                                       string |              Working directory               |
+| `logy.file.level`                                  |                     The level of logs to be written into the file                     | Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
+| `logy.file.json.enabled`                           |                            Enable the JSON file formatting                            |                                         bool |                   `false`                    |
+| `logy.file.json.key-overrides`.`property-name`     |                           Override keys with custom values                            |                            map[string]string |                                              |
+| `logy.file.json.additional-fields`.`property-name` |                                Additional field values                                |                               map[string]any |                                              |
+
+## Syslog Logging
+You can configure the syslog handler with the following configuration properties:
+
+| Property                         |                                            Description                                            |                                                                                                                                                                                                                                                                                                                          Type |                   Default                    |
+|:---------------------------------|:-------------------------------------------------------------------------------------------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------:|
+| `logy.syslog.enabled`            |                                     Enable the syslog logging                                     |                                                                                                                                                                                                                                                                                                                          bool |                   `false`                    |
+| `logy.syslog.endpoint`           |                           The IP address and port of the syslog server                            |                                                                                                                                                                                                                                                                                                                     host:port |               `localhost:514`                |
+| `logy.syslog.app-name`           |                 The app name used when formatting the message in `RFC5424` format                 |                                                                                                                                                                                                                                                                                                                        string |                                              |
+| `logy.syslog.hostname`           |                       The name of the host the messages are being sent from                       |                                                                                                                                                                                                                                                                                                                        string |                                              |
+| `logy.syslog.facility`           | The facility used when calculating the priority of the message in `RFC5424` and  `RFC3164` format | Facility(`kernel`,`user-level`,`mail-system`,`system-daemons`,`security`,`syslogd`,`line-printer`,`network-news`,`uucp`,`clock-daemon`,`security2`,`ftp-daemon`,`ntp`,`log-audit`,`log-alert`,`clock-daemon2`,`local-use-0`,`local-use-1`,`local-use-2`,`local-use-3`,`local-use-4`,`local-use-5`,`local-use-6`,`local-use-7` |                 `user-level`                 |
+| `logy.syslog.log-type`           |                     The message format type used when formatting the message                      |                                                                                                                                                                                                                                                                                               SysLogType(`rfc5424`,`rfc3164`) |                  `rfc5424`                   |
+| `logy.syslog.protocol`           |                         The protocol used to connect to the syslog server                         |                                                                                                                                                                                                                                                                                                         Protocol(`tcp`,`udp`) |                    `tcp`                     |
+| `logy.syslog.block-on-reconnect` |             Enable or disable blocking when attempting to reconnect the syslog server             |                                                                                                                                                                                                                                                                                                                          bool |                   `false`                    |
+| `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
+| `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
+
 ## Logging Levels
 
 You can use logging levels to categorize logs by severity.
 
 Supported logging levels:
+
 * ERROR
 * WARN
 * INFO
@@ -56,28 +113,33 @@ Supported logging levels:
 
 ## Log Handlers
 
-Logy comes with three different log handlers: **console**, **file** and **syslog**.
+A log handler is a logging component that sends log messages to a writer. Logy 
+includes the following log handlers:
 
 ### Console Log Handler
 
-The console log handler is enabled by default.
+The console log handler is enabled by default. It outputs all log messages to the console of your application.
+(typically to the system's `stdout`)
 
 ### File Log Handler
 
-The file log handler is disabled by default.
+The file log handler is disabled by default. It outputs all log messages to a file.
+`Note that there is no support log file rotation.`
 
 ### Syslog Log Handler
 
-The syslog log handler is disabled by default.
+The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
+the syslog server runs on the same host as the application)
 
 ## Colorize Logs
 
 If your terminal supports ANSI, the color output will be used to aid readability.
 You can set `logy.console.color` to `true`.
 
-
 ### Example logging yaml configuration
-Here is an example of how you 
+
+Here is an example of how you
+
 ```yaml
 logy:
   level: INFO
