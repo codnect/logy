@@ -91,12 +91,6 @@ The file log handler is disabled by default. It outputs all log messages to a fi
 The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
 the syslog server runs on the same host as the application)
 
-## Colorize Logs
-
-If your terminal supports ANSI, the color output will be used to aid readability.
-You can set `logy.console.color` to `true`.
-
-
 ## Logging Format
 
 By default, Logy uses a pattern-based logging format.
@@ -131,7 +125,7 @@ Supported logging format symbols:
 | `%X`                |       Mapped Context Values        | All the values from Mapped Context in format `property-key1=property-value1,property-key2=property-value2` |
 | `%x`                | Mapped Context Values without keys |        All the values without keys from Mapped Context in format `property-value1,property-value2`         |
 
-## Console Logging Properties
+### Console Handler Properties
 You can configure the console handler with the following configuration properties:
 
 | Property                                              |                                         Description                                         |                                         Type |                   Default                    |
@@ -145,7 +139,7 @@ You can configure the console handler with the following configuration propertie
 | `logy.console.json.key-overrides`.`property-name`     |                              Override keys with custom values                               |                            map[string]string |                                              |
 | `logy.console.json.additional-fields`.`property-name` |                                   Additional field values                                   |                               map[string]any |                                              |
 
-## File Logging Properties
+### File Handler Properties
 You can configure the file handler with the following configuration properties:
 
 | Property                                           |                                      Description                                      |                                         Type |                   Default                    |
@@ -159,7 +153,7 @@ You can configure the file handler with the following configuration properties:
 | `logy.file.json.key-overrides`.`property-name`     |                           Override keys with custom values                            |                            map[string]string |                                              |
 | `logy.file.json.additional-fields`.`property-name` |                                Additional field values                                |                               map[string]any |                                              |
 
-## Syslog Logging
+### Syslog Handler Properties
 You can configure the syslog handler with the following configuration properties:
 
 | Property                         |                                            Description                                            |                                                                                                                                                                                                                                                                                                                          Type |                   Default                    |
@@ -175,30 +169,78 @@ You can configure the syslog handler with the following configuration properties
 | `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
 | `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
 
-### Example logging yaml configuration
+## Examples
 
-Here is an example of how you
+*Console Logging Configuration*
 
 ```yaml
 logy:
   level: INFO
-  include-caller: true
-  handlers:
-    - console
 
   console:
     enabled: true
+    # Send output to stderr
     target: stderr
     format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n"
+    # Disable color coded output
     color: false
     level: DEBUG
-    json:
+```
+
+*Console JSON Logging Configuration*
+
+```yaml
+logy:
+  level: INFO
+  console:
+    enabled: true
+    # Send output to stderr
+    target: stderr
+    format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n"
+    level: DEBUG
+    json: 
+      enabled: true
       key-overrides:
         timestamp: "@timestamp"
       additional-fields:
-        application-name:
-          value: test-app
+        application-name: "my-logy-app"
 ```
+Note that console log will only contain `INFO` or higher order logs because we set the root logger level to `INFO`.
+
+
+*File Logging Configuration*
+
+```yaml
+logy:
+  level: INFO
+  file:
+    enabled: true
+    level: TRACE
+    format: "d{2006-01-02 15:04:05} %p %s%e%n"
+    # Send output to a file_trace.log under the /var directory
+    name: file_trace.log
+    path: /var
+```
+
+*File JSON Logging Configuration*
+
+```yaml
+logy:
+  level: INFO
+  file:
+    enabled: true
+    level: TRACE
+    # Send output to a file_trace.log under the /var directory
+    name: file_trace.log
+    path: /var
+    json: 
+      enabled: true
+      key-overrides:
+        timestamp: "@timestamp"
+      additional-fields:
+        application-name: "my-logy-app"
+```
+Note that file log will only contain `INFO` or higher order logs because we set the root logger level to `INFO`.
 
 ## Performance
 
