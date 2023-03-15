@@ -2,7 +2,7 @@
 
 # Logy
 
-The Logy package provides a fast and simple logger.
+The Logy package provides a fast, configurable and simple logger.
 
 ## Installation
 
@@ -90,6 +90,40 @@ The file log handler is disabled by default. It outputs all log messages to a fi
 
 The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
 the syslog server runs on the same host as the application)
+
+### External Log Handler
+Customized log handlers that implements the `Handler` interface can be used, but you need to register them by calling `logy.RegisterHandler()`
+function. After registration, it's ready for receiving log messages and output them.
+
+```go
+type Handler interface {
+    Handle(record Record) error
+    SetLevel(level Level)
+    Level() Level
+    SetEnabled(enabled bool)
+    IsEnabled() bool
+    IsLoggable(record Record) bool
+    Writer() io.Writer
+}
+```
+
+Here is an example of how you can register your custom handlers:
+
+```go
+// CustomHandler implements the Handler interface
+type CustomHandler struct {
+	
+}
+
+func newCustomHandler() *CustomHandler {
+    return &CustomHandler{...}
+}
+...
+
+func init() {
+    logy.RegisterHandler("handlerName", newCustomHandler())
+}
+```
 
 ## Logging Configuration
 
