@@ -91,7 +91,69 @@ The file log handler is disabled by default. It outputs all log messages to a fi
 The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
 the syslog server runs on the same host as the application)
 
-## Logging Format
+## Logging Configuration
+
+In order to configure the logging, you can use the following approaches:
+* Environment Variables
+* Programmatically
+1. Loading logging configuration from a yaml file
+```go
+func init() {
+    err := logy.LoadConfigFromYaml("logy.config.yaml")
+	
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+2. Loading logging configuration from config struct
+```go
+func init() {
+    err := logy.LoadConfig(&logy.Config{
+            Level:    logy.LevelTrace,
+            Handlers: logy.Handlers{"console", "file"},
+            Console: &logy.ConsoleConfig{
+            Level:   logy.LevelTrace,
+            Enabled: true,
+            // this will be ignored because console json logging is enabled
+            Format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n",
+            Color:   true,
+            Json:    &logy.JsonConfig{
+                Enabled: true,
+                KeyOverrides: logy.KeyOverrides{
+                "timestamp": "@timestamp",
+                },
+                AdditionalFields: logy.JsonAdditionalFields{
+                "application-name": "my-logy-app",
+                },
+            },
+        },
+        File: &logy.FileConfig{
+            Enabled: true,
+            Name: "file_trace.log",
+            Path: "/var",
+            // this will be ignored because file json logging is enabled
+            Format: "d{2006-01-02 15:04:05} %p %s%e%n",
+            Json:    &logy.JsonConfig{
+                Enabled: true,
+                KeyOverrides: logy.KeyOverrides{
+                "timestamp": "@timestamp",
+                },
+                AdditionalFields: logy.JsonAdditionalFields{
+                "application-name": "my-logy-app",
+                },
+            },
+        },
+    })
+
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+### Logging Format
 
 By default, Logy uses a pattern-based logging format.
 
@@ -124,6 +186,7 @@ Supported logging format symbols:
 | `%x{property-name}` |  Mapped Context Value without key  |                   The value without key from Mapped Context  in format `property-value`                    |
 | `%X`                |       Mapped Context Values        | All the values from Mapped Context in format `property-key1=property-value1,property-key2=property-value2` |
 | `%x`                | Mapped Context Values without keys |        All the values without keys from Mapped Context in format `property-value1,property-value2`         |
+
 
 ### Console Handler Properties
 You can configure the console handler with the following configuration properties:
@@ -169,68 +232,8 @@ You can configure the syslog handler with the following configuration properties
 | `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
 | `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
 
-## Examples Logging Configuration
 
-In order to configure the logging, you can use the following approaches:
-* Environment Variables
-* Programmatically
-1. Loading logging configuration from a yaml file
-```go
-func init() {
-    err := logy.LoadConfigFromYaml("logy.config.yaml")
-	
-    if err != nil {
-        panic(err)
-    }
-}
-```
-
-2. Loading logging configuration from config struct
-```go
-func init() {
-    err := logy.LoadConfig(&logy.Config{
-            Level:    logy.LevelTrace,
-            Handlers: logy.Handlers{"console", "file"},
-            Console: &logy.ConsoleConfig{
-            Level:   logy.LevelTrace,
-            Enabled: true,
-            // this will be ignored because console json logging is enabled
-            Format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n",
-            Color:   true,
-            Json:    &logy.JsonConfig{
-                Enabled: true,
-                KeyOverrides: logy.KeyOverrides{
-                "timestamp": "@timestamp",
-                },
-                AdditionalFields: logy.JsonAdditionalFields{
-                "application-name": "my-logy-app",
-                },
-            },
-        },
-        File: &logy.FileConfig{
-            Enabled: true,
-            Name: "file_trace.log",
-            Path: "/var",
-            // this will be ignored because console json logging is enabled
-            Format: "d{2006-01-02 15:04:05} %p %s%e%n",
-            Json:    &logy.JsonConfig{
-                Enabled: true,
-                KeyOverrides: logy.KeyOverrides{
-                "timestamp": "@timestamp",
-                },
-                AdditionalFields: logy.JsonAdditionalFields{
-                "application-name": "my-logy-app",
-                },
-            },
-        },
-    })
-
-    if err != nil {
-        panic(err)
-    }
-}
-```
-
+## Examples YAML Logging Configuration
 
 *Console Logging Configuration*
 
@@ -247,8 +250,6 @@ logy:
     color: false
     level: DEBUG
 ```
-
-As an alternative, you can configure it programmatically as shown below.
 
 *Console JSON Logging Configuration*
 
@@ -340,3 +341,6 @@ Log a message with a logger that already has 10 fields of context:
 | log15                   | 12532 ns/op  |   130 allocs/op   |
 | apex/log                | 14494 ns/op  |   53 allocs/op    |
 | logrus                  | 16246 ns/op  |   68 allocs/op    |
+
+# License
+Logy is released under MIT License.
