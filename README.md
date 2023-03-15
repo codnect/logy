@@ -96,7 +96,8 @@ the syslog server runs on the same host as the application)
 In order to configure the logging, you can use the following approaches:
 * Environment Variables
 * Programmatically
-1. Loading logging configuration from a yaml file
+
+You can load the yaml logging configuration files as shown below.
 ```go
 func init() {
     err := logy.LoadConfigFromYaml("logy.config.yaml")
@@ -107,7 +108,7 @@ func init() {
 }
 ```
 
-2. Loading logging configuration from config struct
+As an alternative, you can configure the logging by invoking `logy.LoadConfig()` function.
 ```go
 func init() {
     err := logy.LoadConfig(&logy.Config{
