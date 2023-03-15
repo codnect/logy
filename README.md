@@ -10,16 +10,92 @@ The Logy package provides a fast and simple logger.
 go get -u github.com/procyon-projects/logy
 ```
 
-## Enabling Logging for your application
+## Loggers
+A Logger instance is used to log messages for an application. Loggers are named, 
+using a hierarchical dot and slash separated namespace.
 
-Logy comes with three different loggers: **Package**, **Named** and **Type**.
+For example, the logger named `github.com/procyon-projects` is a parent of the logger named `github.com/procyon-projects/logy`.
+Similarly, `net` is a parent of `net/http` and an ancestor of `net/http/cookiejar`.
 
+Logger names can be arbitrary strings, however we recommend that they are based on the package name or struct name of the logged component.
 
-### Package Logger
+Logging messages will be forwarded to handlers attached to the loggers.
 
-### Named Logger
+Loggers are obtained by using one of the following approaches. They will either create a new Logger or return an existing Logger.
+Depending on your application code, you can use one of them. 
 
-### Type Logger
+```go
+package test
+
+import (
+	"github.com/procyon-projects/logy"
+	"net/http"
+)
+
+var (
+	// The name of the logger will be the name of the package the logy.New() function was called from
+	x = logy.New()
+	// The name of the logger will be `github.com`. Its parent logger will be `github`
+	y = logy.Named("github.com")
+	// The name of the logger will be `net/http.Client`.
+	z = logy.Of[http.Client]
+)
+```
+
+Invoking the `logy.Named()` function with the same name or the `logy.New()`function in the same package will return always the exact same Logger.
+
+```go
+package test
+
+import (
+	"github.com/procyon-projects/logy"
+)
+
+var (
+	// x and y loggers will be the same
+	x = logy.Named("foo")
+	y = logy.Named("foo")
+	// z and q loggers will be the same
+	z = logy.New()
+	q = logy.New()
+)
+```
+
+## Logging Levels
+
+Logy provides many logging levels. Below is the complete list.
+
+* **ERROR**
+* **WARN**
+* **INFO**
+* **DEBUG**
+* **TRACE**
+
+## Log Handlers
+
+A log handler is a logging component that sends log messages to a writer. Logy
+includes the following log handlers:
+
+### Console Log Handler
+
+The console log handler is enabled by default. It outputs all log messages to the console of your application.
+(typically to the system's `stdout`)
+
+### File Log Handler
+
+The file log handler is disabled by default. It outputs all log messages to a file.
+`Note that there is no support log file rotation.`
+
+### Syslog Log Handler
+
+The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
+the syslog server runs on the same host as the application)
+
+## Colorize Logs
+
+If your terminal supports ANSI, the color output will be used to aid readability.
+You can set `logy.console.color` to `true`.
+
 
 ## Logging Format
 
@@ -98,43 +174,6 @@ You can configure the syslog handler with the following configuration properties
 | `logy.syslog.block-on-reconnect` |             Enable or disable blocking when attempting to reconnect the syslog server             |                                                                                                                                                                                                                                                                                                                          bool |                   `false`                    |
 | `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
 | `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
-
-## Logging Levels
-
-You can use logging levels to categorize logs by severity.
-
-Supported logging levels:
-
-* ERROR
-* WARN
-* INFO
-* DEBUG
-* TRACE
-
-## Log Handlers
-
-A log handler is a logging component that sends log messages to a writer. Logy 
-includes the following log handlers:
-
-### Console Log Handler
-
-The console log handler is enabled by default. It outputs all log messages to the console of your application.
-(typically to the system's `stdout`)
-
-### File Log Handler
-
-The file log handler is disabled by default. It outputs all log messages to a file.
-`Note that there is no support log file rotation.`
-
-### Syslog Log Handler
-
-The syslog log handler is disabled by default. It send all log messages to a syslog server (by default,
-the syslog server runs on the same host as the application)
-
-## Colorize Logs
-
-If your terminal supports ANSI, the color output will be used to aid readability.
-You can set `logy.console.color` to `true`.
 
 ### Example logging yaml configuration
 
