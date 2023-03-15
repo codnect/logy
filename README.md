@@ -33,12 +33,12 @@ import (
 )
 
 var (
-	// The name of the logger will be the name of the package the logy.New() function was called from
-	x = logy.New()
-	// The name of the logger will be `github.com`. Its parent logger will be `github`
-	y = logy.Named("github.com")
-	// The name of the logger will be `net/http.Client`.
-	z = logy.Of[http.Client]
+    // The name of the logger will be the name of the package the logy.New() function was called from
+    x = logy.New()
+    // The name of the logger will be `github.com`. Its parent logger will be `github`
+    y = logy.Named("github.com")
+    // The name of the logger will be `net/http.Client`.
+    z = logy.Of[http.Client]
 )
 ```
 
@@ -52,12 +52,12 @@ import (
 )
 
 var (
-	// x and y loggers will be the same
-	x = logy.Named("foo")
-	y = logy.Named("foo")
-	// z and q loggers will be the same
-	z = logy.New()
-	q = logy.New()
+    // x and y loggers will be the same
+    x = logy.Named("foo")
+    y = logy.Named("foo")
+    // z and q loggers will be the same
+    z = logy.New()
+    q = logy.New()
 )
 ```
 
@@ -169,7 +169,68 @@ You can configure the syslog handler with the following configuration properties
 | `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
 | `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
 
-## Examples
+## Examples Logging Configuration
+
+In order to configure the logging, you can use the following approaches:
+* Environment Variables
+* Programmatically
+1. Loading logging configuration from a yaml file
+```go
+func init() {
+    err := logy.LoadConfigFromYaml("logy.config.yaml")
+	
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+2. Loading logging configuration from config struct
+```go
+func init() {
+    err := logy.LoadConfig(&logy.Config{
+            Level:    logy.LevelTrace,
+            Handlers: logy.Handlers{"console", "file"},
+            Console: &logy.ConsoleConfig{
+            Level:   logy.LevelTrace,
+            Enabled: true,
+            // this will be ignored because console json logging is enabled
+            Format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n",
+            Color:   true,
+            Json:    &logy.JsonConfig{
+                Enabled: true,
+                KeyOverrides: logy.KeyOverrides{
+                "timestamp": "@timestamp",
+                },
+                AdditionalFields: logy.JsonAdditionalFields{
+                "application-name": "my-logy-app",
+                },
+            },
+        },
+        File: &logy.FileConfig{
+            Enabled: true,
+            Name: "file_trace.log",
+            Path: "/var",
+            // this will be ignored because console json logging is enabled
+            Format: "d{2006-01-02 15:04:05} %p %s%e%n",
+            Json:    &logy.JsonConfig{
+                Enabled: true,
+                KeyOverrides: logy.KeyOverrides{
+                "timestamp": "@timestamp",
+                },
+                AdditionalFields: logy.JsonAdditionalFields{
+                "application-name": "my-logy-app",
+                },
+            },
+        },
+    })
+
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
 
 *Console Logging Configuration*
 
@@ -186,6 +247,8 @@ logy:
     color: false
     level: DEBUG
 ```
+
+As an alternative, you can configure it programmatically as shown below.
 
 *Console JSON Logging Configuration*
 
