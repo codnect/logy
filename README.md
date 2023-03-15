@@ -123,10 +123,10 @@ func init() {
             Json:    &logy.JsonConfig{
                 Enabled: true,
                 KeyOverrides: logy.KeyOverrides{
-                "timestamp": "@timestamp",
+                    "timestamp": "@timestamp",
                 },
                 AdditionalFields: logy.JsonAdditionalFields{
-                "application-name": "my-logy-app",
+                    "application-name": "my-logy-app",
                 },
             },
         },
@@ -139,10 +139,10 @@ func init() {
             Json:    &logy.JsonConfig{
                 Enabled: true,
                 KeyOverrides: logy.KeyOverrides{
-                "timestamp": "@timestamp",
+                    "timestamp": "@timestamp",
                 },
                 AdditionalFields: logy.JsonAdditionalFields{
-                "application-name": "my-logy-app",
+                    "application-name": "my-logy-app",
                 },
             },
         },
