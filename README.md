@@ -94,12 +94,53 @@ log.Trace("This is a trace message")
 If you have a context, you can use the`I()`, `E()`, `W()`, `D()`, and `T()` methods to log messages with that context.
 
 ```go
-ctx := context.Background()
-logger.I(ctx, "This is an information message with context")
-logger.W(ctx, "This is a warning message with context")
-logger.E(ctx, "This is an error message with context")
-logger.D(ctx, "This is a debug message with context")
-logger.T(ctx, "This is a trace message with context")
+log.I(ctx, "This is an information message with context")
+log.W(ctx, "This is a warning message with context")
+log.E(ctx, "This is an error message with context")
+log.D(ctx, "This is a debug message with context")
+log.T(ctx, "This is a trace message with context")
+```
+
+You can use the `logy.WithMappedContext` function to create a context with a `MappedContext instance`, 
+which can hold contextual fields. 
+
+Here's an example:
+
+```go
+ctx := logy.WithMappedContext(context.Background())
+```
+
+`logy.WithValue` and `logy.PutValue` are both used for adding contextual fields 
+to the `MappedContext` instance of a given context
+
+Here's usage of `logy.PutValue`:
+```go
+logy.PutValue(ctx, "traceId", "anyTraceId")
+logy.PutValue(ctx, "spanId", "anySpanId")
+```
+
+Here's usage of `logy.WithValue`:
+```go
+ctx = logy.WithValue(ctx, "traceId", "anyTraceId")
+ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+```
+
+* `logy.WithValue` creates a new context with a `cloned MappedContext` instance that has the additional field. 
+* `logy.PutValue` directly modifies the `MappedContext` instance in the given context to add the additional field. 
+
+This means that any other code that uses the same context will also see the added field.
+Therefore, `logy.WithValue` is a safer choice when you want to add a field to a context and pass it to other parts of your code, 
+while `logy.PutValue` is more suitable if you want to add a field to a context that is only used locally 
+within a function or a specific section of code.
+
+After putting the contextual fields to MappedContext, log messages as shown below.
+
+```go
+log.I(ctx, "info message")
+log.W(ctx, "warning message")
+log.E(ctx, "error message")
+log.D(ctx, "debug message")
+log.T(ctx, "trace message")
 ```
 
 ## Log Handlers
