@@ -2,45 +2,65 @@
 
 # Logy
 
-The Logy package provides a fast, configurable and simple logger.
+The Logy is a fast, configurable, and easy-to-use logger for Go applications. It supports various logging levels, handlers, and hierarchically named loggers.
 
-## Installation
+## Getting Started
+
+### Installation
+To use Logy in your Go project, you need to first install it using the following command:
 
 ```bash
 go get -u github.com/procyon-projects/logy
 ```
 
-## Loggers
-A Logger instance is used to log messages for an application. Loggers are named, 
+After installing Logy, you can import it in your Go code like this:
+
+```go
+import "github.com/procyon-projects/logy"
+```
+Once you've imported Logy, you can start using it to log messages.
+
+### Loggers
+A Logger instance is used to log messages for an application. Loggers are named,
 using a hierarchical dot and slash separated namespace.
 
 For example, the logger named `github.com/procyon-projects` is a parent of the logger named `github.com/procyon-projects/logy`.
-Similarly, `net` is a parent of `net/http` and an ancestor of `net/http/cookiejar`.
+Similarly, `net` is a parent of `net/http` and an ancestor of `net/http/cookiejar`
 
-Logger names can be arbitrary strings, however we recommend that they are based on the package name or struct name of the logged component.
+Logger names can be arbitrary strings, however it's recommended that they are based on the package name or struct name of the logged component.
 
 Logging messages will be forwarded to handlers attached to the loggers.
 
-Loggers are obtained by using one of the following approaches. They will either create a new Logger or return an existing Logger.
-Depending on your application code, you can use one of them. 
+### Creating Logger
+Logy provides multiple ways of creating a logger. 
+You can either create a new logger with the `logy.New()` function, 
+which creates a named logger with the name of the package it is called from:
 
 ```go
-package test
+import "github.com/procyon-projects/logy"
 
-import (
-	"github.com/procyon-projects/logy"
-	"net/http"
-)
-
-var (
-    // The name of the logger will be the name of the package the logy.New() function was called from
-    x = logy.New()
-    // The name of the logger will be `github.com`. Its parent logger will be `github`
-    y = logy.Named("github.com")
-    // The name of the logger will be `net/http.Client`.
-    z = logy.Of[http.Client]
-)
+log := logy.New()
 ```
+For example, a logger created in the `github.com/procyon-projects/logy` package would have the name `github.com/procyon-projects/logy`.
+
+Alternatively, you can use the `logy.Named()` function to create a named logger with a specific name:
+
+```go
+log := logy.Named("myLogger")
+```
+This will create a logger with the given name.
+
+You can also use the `logy.Of()` method to create a logger for a specific type:
+
+```go
+import (
+    "github.com/procyon-projects/logy"
+    "net/http"
+)
+
+log := logy.Of[http.Client]
+```
+This will create a logger with the name `net/http.Client`.
 
 Invoking the `logy.Named()` function with the same name or the `logy.New()`function in the same package will return always the exact same Logger.
 
@@ -61,15 +81,26 @@ var (
 )
 ```
 
-## Logging Levels
+### Logging Messages
+You can log messages using the `Info()`, `Error()`, `Warn()`, `Debug()`, and `Trace()` methods.
 
-Logy provides many logging levels. Below is the complete list.
+```go
+log.Info("This is an information message")
+log.Warn("This is a warning message")
+log.Error("This is an error message")
+log.Debug("This is a debug message")
+log.Trace("This is a trace message")
+```
+If you have a context, you can use the`I()`, `E()`, `W()`, `D()`, and `T()` methods to log messages with that context.
 
-* **ERROR**
-* **WARN**
-* **INFO**
-* **DEBUG**
-* **TRACE**
+```go
+ctx := context.Background()
+logger.I(ctx, "This is an information message with context")
+logger.W(ctx, "This is a warning message with context")
+logger.E(ctx, "This is an error message with context")
+logger.D(ctx, "This is a debug message with context")
+logger.T(ctx, "This is a trace message with context")
+```
 
 ## Log Handlers
 
