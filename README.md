@@ -20,6 +20,50 @@ import "github.com/procyon-projects/logy"
 ```
 Once you've imported Logy, you can start using it to log messages.
 
+### Usage
+Here's an example of how to use Logy:
+```go
+package main
+
+import (
+    "context"
+    "github.com/procyon-projects/logy"
+)
+
+func main() {
+    log := logy.New()
+
+    // Logging messages with different log levels
+    log.Info("This is an information message")
+    log.Warn("This is a warning message")
+    log.Error("This is an error message")
+    log.Debug("This is a debug message")
+    log.Trace("This is a trace message")
+
+
+    // Adding contextual fields to log messages
+    ctx := logy.WithMappedContext(context.Background())
+    logy.PutValue(ctx, "traceId", "anyTraceId")
+    logy.PutValue(ctx, "spanId", "anySpanId")
+	
+    // Logging messages with context
+    log.I(ctx, "This is an information message with contextual fields")
+    log.W(ctx, "This is a warning message with contextual fields")
+    log.E(ctx, "This is an error message with contextual fields")
+    log.D(ctx, "This is a debug message with contextual fields")
+    log.T(ctx, "This is a trace message with contextual fields")
+	
+    // Adding contextual fields in a safe way.
+    // This function clones the existing MappedContext and adds the 
+    // new key-value pair to the cloned context.
+    // This ensures that the original context is not modified 
+    // and avoids any potential issues.
+    clone := logy.WithValue(ctx, "traceId", "anotherTraceId")
+    clone = logy.WithValue(clone, "spanId", "anotherSpanId")
+    log.I(clone, "This is an information message with contextual fields")
+}
+```
+
 ### Loggers
 A Logger instance is used to log messages for an application. Loggers are named,
 using a hierarchical dot and slash separated namespace.
