@@ -58,23 +58,23 @@ import (
 )
 
 func main() {
-	// logy.Get() creates a logger with the name of the package it is called from
-	log := logy.Get()
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
 	
-	// logy.WithValue() returns a new context with the given field and copies any 
-	// existing contextual fields if they exist.
-	// This ensures that the original context is not modified and avoids any potential 
-	// issues.
-	ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
-	// It will create a new context with the spanId and copies the existing fields
-	ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+    // logy.WithValue() returns a new context with the given field and copies any 
+    // existing contextual fields if they exist.
+    // This ensures that the original context is not modified and avoids any potential 
+    // issues.
+    ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
+    // It will create a new context with the spanId and copies the existing fields
+    ctx = logy.WithValue(ctx, "spanId", "anySpanId")
 	
-	// Logging messages with contextual fields
-	log.I(ctx, "info message")
-	log.W(ctx, "warning message")
-	log.E(ctx, "error message")
-	log.D(ctx, "debug message")
-	log.T(ctx, "trace message")
+    // Logging messages with contextual fields
+    log.I(ctx, "info message")
+    log.W(ctx, "warning message")
+    log.E(ctx, "error message")
+    log.D(ctx, "debug message")
+    log.T(ctx, "trace message")
 }
 ```
 
