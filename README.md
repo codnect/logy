@@ -31,7 +31,8 @@ import (
 )
 
 func main() {
-    log := logy.New()
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
 
     // Logging messages with different log levels
     log.Info("This is an information message")
@@ -39,29 +40,49 @@ func main() {
     log.Error("This is an error message")
     log.Debug("This is a debug message")
     log.Trace("This is a trace message")
-
-
-    // Adding contextual fields to log messages
-    ctx := logy.WithMappedContext(context.Background())
-    logy.PutValue(ctx, "traceId", "anyTraceId")
-    logy.PutValue(ctx, "spanId", "anySpanId")
-	
-    // Logging messages with context
-    log.I(ctx, "This is an information message with contextual fields")
-    log.W(ctx, "This is a warning message with contextual fields")
-    log.E(ctx, "This is an error message with contextual fields")
-    log.D(ctx, "This is a debug message with contextual fields")
-    log.T(ctx, "This is a trace message with contextual fields")
-	
-    // Adding contextual fields in a safe way.
-    // This function clones the existing MappedContext and adds the 
-    // new key-value pair to the cloned context.
-    // This ensures that the original context is not modified 
-    // and avoids any potential issues.
-    clone := logy.WithValue(ctx, "traceId", "anotherTraceId")
-    clone = logy.WithValue(clone, "spanId", "anotherSpanId")
-    log.I(clone, "This is an information message with contextual fields")
 }
+```
+
+If you want to add contextual fields to your log messages, you can use the `logy.WithValue()` function to create a new context with the desired fields. 
+This function returns a new context with the additional field(s) and copies any existing contextual fields from the original context. 
+
+You can then use the new context to log messages with contextual fields using the `I()`, `W()`, `E()`, `D()`, and `T()` methods.
+These methods accept the context as the first argument, followed by the log message itself.
+
+```go
+package main
+
+import (
+	"context"
+	"github.com/procyon-projects/logy"
+)
+
+func main() {
+	// logy.Get() creates a logger with the name of the package it is called from
+	log := logy.Get()
+	
+	// logy.WithValue() returns a new context with the given field and copies any 
+	// existing contextual fields if they exist.
+	// This ensures that the original context is not modified 
+	// and avoids any potential issues.
+	ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
+	// It will create a new context with the spanId and copies the existing fields
+	ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+	
+	// Logging messages with contextual fields
+	log.I(ctx, "info message")
+	log.W(ctx, "warning message")
+	log.E(ctx, "error message")
+	log.D(ctx, "debug message")
+	log.T(ctx, "trace message")
+}
+```
+
+if you want to add a contextual field to an existing context, you can use the `logy.PutValue()` function
+to directly modify the context. However, note that this should not be done across multiple goroutines as it is not safe.
+```go
+// It will put the field into original context, so the original context is changed.
+logy.PutValue(ctx, "traceId", "anotherTraceId")
 ```
 
 ### Loggers
@@ -77,13 +98,11 @@ Logging messages will be forwarded to handlers attached to the loggers.
 
 ### Creating Logger
 Logy provides multiple ways of creating a logger. 
-You can either create a new logger with the `logy.New()` function, 
+You can either create a new logger with the `logy.Get()` function, 
 which creates a named logger with the name of the package it is called from:
 
 ```go
-import "github.com/procyon-projects/logy"
-
-log := logy.New()
+log := logy.Get()
 ```
 For example, a logger created in the `github.com/procyon-projects/logy` package would have the name `github.com/procyon-projects/logy`.
 
@@ -97,11 +116,6 @@ This will create a logger with the given name.
 You can also use the `logy.Of()` method to create a logger for a specific type:
 
 ```go
-import (
-    "github.com/procyon-projects/logy"
-    "net/http"
-)
-
 log := logy.Of[http.Client]
 ```
 This will create a logger with the name `net/http.Client`.
@@ -123,68 +137,6 @@ var (
     z = logy.New()
     q = logy.New()
 )
-```
-
-### Logging Messages
-You can log messages using the `Info()`, `Error()`, `Warn()`, `Debug()`, and `Trace()` methods.
-
-```go
-log.Info("This is an information message")
-log.Warn("This is a warning message")
-log.Error("This is an error message")
-log.Debug("This is a debug message")
-log.Trace("This is a trace message")
-```
-If you have a context, you can use the`I()`, `E()`, `W()`, `D()`, and `T()` methods to log messages with that context.
-
-```go
-log.I(ctx, "This is an information message with context")
-log.W(ctx, "This is a warning message with context")
-log.E(ctx, "This is an error message with context")
-log.D(ctx, "This is a debug message with context")
-log.T(ctx, "This is a trace message with context")
-```
-
-You can use the `logy.WithMappedContext` function to create a context with a `MappedContext instance`, 
-which can hold contextual fields. 
-
-Here's an example:
-
-```go
-ctx := logy.WithMappedContext(context.Background())
-```
-
-`logy.WithValue` and `logy.PutValue` are both used for adding contextual fields 
-to the `MappedContext` instance of a given context
-
-Here's usage of `logy.PutValue`:
-```go
-logy.PutValue(ctx, "traceId", "anyTraceId")
-logy.PutValue(ctx, "spanId", "anySpanId")
-```
-
-Here's usage of `logy.WithValue`:
-```go
-ctx = logy.WithValue(ctx, "traceId", "anyTraceId")
-ctx = logy.WithValue(ctx, "spanId", "anySpanId")
-```
-
-* `logy.WithValue` creates a new context with a `cloned MappedContext` instance that has the additional field. 
-* `logy.PutValue` directly modifies the `MappedContext` instance in the given context to add the additional field. 
-
-This means that any other code that uses the same context will also see the added field.
-Therefore, `logy.WithValue` is a safer choice when you want to add a field to a context and pass it to other parts of your code, 
-while `logy.PutValue` is more suitable if you want to add a field to a context that is only used locally 
-within a function or a specific section of code.
-
-After putting the contextual fields to MappedContext, log messages as shown below.
-
-```go
-log.I(ctx, "info message")
-log.W(ctx, "warning message")
-log.E(ctx, "error message")
-log.D(ctx, "debug message")
-log.T(ctx, "trace message")
 ```
 
 ## Log Handlers
