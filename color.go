@@ -22,7 +22,6 @@ var (
 	supportColor = supportsColor()
 
 	levelColors = []logColor{
-		colorDefault,
 		colorRed,
 		colorYellow,
 		colorGreen,
