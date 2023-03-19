@@ -139,7 +139,9 @@ func main() {
 
 The output of the above code execution looks as follows:
 
-![Output](https://user-images.githubusercontent.com/5354910/226198234-1b721daf-73a6-4ecd-be64-bd1f1164d1b7.png)
+```bash
+2023-03-19 21:13:06.029186  INFO github.com/procyon-projects/logy/test    : The value 30 should be between 128 and 256
+```
 
 ### Loggers
 
