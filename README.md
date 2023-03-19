@@ -2,11 +2,13 @@
 
 # Logy
 
-The Logy is a fast, configurable, and easy-to-use logger for Go applications. It supports various logging levels, handlers, and hierarchically named loggers.
+The Logy is a fast, configurable, and easy-to-use logger for Go applications. It supports various logging levels,
+handlers, and hierarchically named loggers.
 
 ## Getting Started
 
 ### Installation
+
 To use Logy in your Go project, you need to first install it using the following command:
 
 ```bash
@@ -18,10 +20,13 @@ After installing Logy, you can import it in your Go code like this:
 ```go
 import "github.com/procyon-projects/logy"
 ```
+
 Once you've imported Logy, you can start using it to log messages.
 
 ### Usage
+
 Here's an example of how to use Logy:
+
 ```go
 package main
 
@@ -47,10 +52,13 @@ The above code produces the following result.
 
 ![Output](https://user-images.githubusercontent.com/5354910/226194630-778278b0-80a5-48bd-81f7-e22e4caa96db.png)
 
-If you want to add contextual fields to your log messages, you can use the `logy.WithValue()` function to create a new context with the desired fields. 
-This function returns a new context with the additional field(s) and copies any existing contextual fields from the original context. 
+If you want to add contextual fields to your log messages, you can use the `logy.WithValue()` function to create a new
+context with the desired fields.
+This function returns a new context with the additional field(s) and copies any existing contextual fields from the
+original context.
 
-You can then use the new context to log messages with contextual fields using the `I()`, `W()`, `E()`, `D()`, and `T()` methods.
+You can then use the new context to log messages with contextual fields using the `I()`, `W()`, `E()`, `D()`, and `T()`
+methods.
 These methods accept the context as the first argument, followed by the log message itself.
 
 ```go
@@ -101,37 +109,71 @@ The above code produces the following result.
 
 if you want to add a contextual field to an existing context, you can use the `logy.PutValue()` function
 to directly modify the context. However, note that this should not be done across multiple goroutines as it is not safe.
+
 ```go
 // It will put the field into original context, so the original context is changed.
 logy.PutValue(ctx, "traceId", "anotherTraceId")
 ```
 
+### Parameterized Logging
+Logy provides support for parameterized log messages.
+
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/procyon-projects/logy"
+)
+
+func main() {
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
+	
+    value := 30
+    // Logging a parameterized message
+    log.Info("The value {} should be between {} and {}", value, 128, 256)
+}
+```
+
+The output of the above code execution looks as follows:
+
+![Output](https://user-images.githubusercontent.com/5354910/226198234-1b721daf-73a6-4ecd-be64-bd1f1164d1b7.png)
+
 ### Loggers
+
 A Logger instance is used to log messages for an application. Loggers are named,
 using a hierarchical dot and slash separated namespace.
 
-For example, the logger named `github.com/procyon-projects` is a parent of the logger named `github.com/procyon-projects/logy`.
+For example, the logger named `github.com/procyon-projects` is a parent of the logger
+named `github.com/procyon-projects/logy`.
 Similarly, `net` is a parent of `net/http` and an ancestor of `net/http/cookiejar`
 
-Logger names can be arbitrary strings, however it's recommended that they are based on the package name or struct name of the logged component.
+Logger names can be arbitrary strings, however it's recommended that they are based on the package name or struct name
+of the logged component.
 
 Logging messages will be forwarded to handlers attached to the loggers.
 
 ### Creating Logger
-Logy provides multiple ways of creating a logger. 
-You can either create a new logger with the `logy.Get()` function, 
+
+Logy provides multiple ways of creating a logger.
+You can either create a new logger with the `logy.Get()` function,
 which creates a named logger with the name of the package it is called from:
 
 ```go
 log := logy.Get()
 ```
-For example, a logger created in the `github.com/procyon-projects/logy` package would have the name `github.com/procyon-projects/logy`.
+
+For example, a logger created in the `github.com/procyon-projects/logy` package would have the
+name `github.com/procyon-projects/logy`.
 
 Alternatively, you can use the `logy.Named()` function to create a named logger with a specific name:
 
 ```go
 log := logy.Named("myLogger")
 ```
+
 This will create a logger with the given name.
 
 You can also use the `logy.Of()` method to create a logger for a specific type:
@@ -139,9 +181,11 @@ You can also use the `logy.Of()` method to create a logger for a specific type:
 ```go
 log := logy.Of[http.Client]
 ```
+
 This will create a logger with the name `net/http.Client`.
 
-Invoking the `logy.Named()` function with the same name or the `logy.Get()`function in the same package will return always the exact same Logger.
+Invoking the `logy.Named()` function with the same name or the `logy.Get()`function in the same package will return
+always the exact same Logger.
 
 ```go
 // x and y loggers will be the same
@@ -174,7 +218,9 @@ The syslog log handler is disabled by default. It send all log messages to a sys
 the syslog server runs on the same host as the application)
 
 ### External Log Handler
-Customized log handlers that implements the `Handler` interface can be used, but you need to register them by calling `logy.RegisterHandler()`
+
+Customized log handlers that implements the `Handler` interface can be used, but you need to register them by
+calling `logy.RegisterHandler()`
 function. After registration, it's ready for receiving log messages and output them.
 
 ```go
@@ -210,10 +256,12 @@ func init() {
 ## Logging Configuration
 
 In order to configure the logging, you can use the following approaches:
+
 * Environment Variables
 * Programmatically
 
 You can load the yaml logging configuration files as shown below.
+
 ```go
 func init() {
     err := logy.LoadConfigFromYaml("logy.config.yaml")
@@ -225,6 +273,7 @@ func init() {
 ```
 
 As an alternative, you can configure the logging by invoking `logy.LoadConfig()` function.
+
 ```go
 func init() {
     err := logy.LoadConfig(&logy.Config{
@@ -264,11 +313,34 @@ func init() {
         },
     })
 
-    if err != nil {
-        panic(err)
-    }
+if err != nil {
+panic(err)
+}
 }
 ```
+
+### Logging Package
+
+Logging is done on a per-package basis. Each package can be independently configured.
+A configuration which applies to a package will also apply to all sub-categories of that package,
+unless there is a more specific matching sub-package configuration.
+
+For every package the same settings that are configured on ( console / file / syslog ) apply.
+
+| Property                                            |                         Description                         |           Type | Default |
+|:----------------------------------------------------|:-----------------------------------------------------------:|---------------:|:-------:|
+| `logy.package`.`package-path`.`level`               |               The log level for this package                |           bool | `TRACE` |
+| `logy.package`.`package-path`.`use-parent-handlers` | Specify whether this logger should user its parent handlers |           bool | `true`  |
+| `logy.package`.`package-path`.`handlers`            |      The names of the handlers to link to this package      | list of string |         |
+
+### Root Logger Configuration
+
+The root logger is handled separately, and is configured via the following properties:
+
+| Property        |                         Description                         |           Type |  Default  |
+|:----------------|:-----------------------------------------------------------:|---------------:|:---------:|
+| `logy.level`    |             The log level for every log package             |           bool |  `TRACE`  |
+| `logy.handlers` |          The names of handlers to link to the root          | list of string | [console] |
 
 ### Logging Format
 
@@ -304,8 +376,8 @@ Supported logging format symbols:
 | `%X`                |       Mapped Context Values        | All the values from Mapped Context in format `property-key1=property-value1,property-key2=property-value2` |
 | `%x`                | Mapped Context Values without keys |        All the values without keys from Mapped Context in format `property-value1,property-value2`         |
 
-
 ### Console Handler Properties
+
 You can configure the console handler with the following configuration properties:
 
 | Property                                              |                                         Description                                         |                                         Type |                   Default                    |
@@ -320,6 +392,7 @@ You can configure the console handler with the following configuration propertie
 | `logy.console.json.additional-fields`.`property-name` |                                   Additional field values                                   |                               map[string]any |                                              |
 
 ### File Handler Properties
+
 You can configure the file handler with the following configuration properties:
 
 | Property                                           |                                      Description                                      |                                         Type |                   Default                    |
@@ -334,6 +407,7 @@ You can configure the file handler with the following configuration properties:
 | `logy.file.json.additional-fields`.`property-name` |                                Additional field values                                |                               map[string]any |                                              |
 
 ### Syslog Handler Properties
+
 You can configure the syslog handler with the following configuration properties:
 
 | Property                         |                                            Description                                            |                                                                                                                                                                                                                                                                                                                          Type |                   Default                    |
@@ -347,8 +421,7 @@ You can configure the syslog handler with the following configuration properties
 | `logy.syslog.protocol`           |                         The protocol used to connect to the syslog server                         |                                                                                                                                                                                                                                                                                                         Protocol(`tcp`,`udp`) |                    `tcp`                     |
 | `logy.syslog.block-on-reconnect` |             Enable or disable blocking when attempting to reconnect the syslog server             |                                                                                                                                                                                                                                                                                                                          bool |                   `false`                    |
 | `logy.syslog.format`             |                                      The log message format                                       |                                                                                                                                                                                                                                                                                                                        string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
-| `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                                  Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
-
+| `logy.syslog.level`              |                        The level of the logs to be logged by syslog logger                        |                                                                                                                                                                                                                                                                      Level(`OFF`,`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`,`ALL`) |                   `TRACE`                    |
 
 ## Examples YAML Logging Configuration
 
@@ -388,8 +461,8 @@ logy:
       additional-fields:
         application-name: "my-logy-app"
 ```
-Note that console log will only contain `INFO` or higher order logs because we set the root logger level to `INFO`.
 
+Note that console log will only contain `INFO` or higher order logs because we set the root logger level to `INFO`.
 
 *File Logging Configuration*
 
@@ -426,16 +499,19 @@ logy:
       additional-fields:
         application-name: "my-logy-app"
 ```
+
 Note that file log will only contain `INFO` or higher order logs because we set the root logger level to `INFO`.
 
 ## Performance
 
-Log a message without context fields
+Here is the benchmark results.
+
+**Log a message without context fields:**
 
 | Package                 |    Time     | Objects Allocated |
 |:------------------------|:-----------:|:-----------------:|
-| :star: logy             | 27.99 ns/op |    0 allocs/op    |
-| :star: logy(formatting) | 883.8 ns/op |    7 allocs/op    |
+| :star: logy             | 62.04 ns/op |    0 allocs/op    |
+| :star: logy(formatting) | 1287 ns/op  |    7 allocs/op    |
 | :zap: exp/slog          | 38.08 ns/op |    0 allocs/op    |
 | zerolog                 | 37.49 ns/op |    0 allocs/op    |
 | zerolog(formatting)     | 3030 ns/op  |   108 allocs/op   |
@@ -447,12 +523,12 @@ Log a message without context fields
 | apex/log                | 1139 ns/op  |    6 allocs/op    |
 | logrus                  | 1831 ns/op  |   23 allocs/op    |
 
-Log a message with a logger that already has 10 fields of context:
+**Log a message with a logger that already has 10 fields of context:**
 
 | Package                 |     Time     | Objects Allocated |
 |:------------------------|:------------:|:-----------------:|
-| :star: logy             | 61.43 ns/op  |    0 allocs/op    |
-| :star: logy(formatting) | 1208.0 ns/op |    7 allocs/op    |
+| :star: logy             | 85.29 ns/op  |    0 allocs/op    |
+| :star: logy(formatting) | 1369.0 ns/op |    7 allocs/op    |
 | :zap: exp/slog          | 266.3 ns/op  |    0 allocs/op    |
 | zerolog                 | 44.84 ns/op  |    0 allocs/op    |
 | zerolog(formatting)     | 3103.0 ns/op |   108 allocs/op   |
@@ -465,4 +541,5 @@ Log a message with a logger that already has 10 fields of context:
 | logrus                  | 16246 ns/op  |   68 allocs/op    |
 
 # License
+
 Logy is released under MIT License.
