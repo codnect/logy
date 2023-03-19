@@ -43,6 +43,10 @@ func main() {
 }
 ```
 
+The above code produces the following result.
+
+![Output](https://user-images.githubusercontent.com/5354910/226194630-778278b0-80a5-48bd-81f7-e22e4caa96db.png)
+
 If you want to add contextual fields to your log messages, you can use the `logy.WithValue()` function to create a new context with the desired fields. 
 This function returns a new context with the additional field(s) and copies any existing contextual fields from the original context. 
 
@@ -60,6 +64,19 @@ import (
 func main() {
     // logy.Get() creates a logger with the name of the package it is called from
     log := logy.Get()
+
+    // Change console log format
+    err := logy.LoadConfig(&logy.Config{
+        Console: &logy.ConsoleConfig{
+            Enabled: true,
+            Format:  "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p %c : %s%e%n",
+            Color:   true,
+        },
+    })
+	
+    if err != nil {
+        panic(err)
+    }
 	
     // logy.WithValue() returns a new context with the given field and copies any 
     // existing contextual fields if they exist.
@@ -77,6 +94,10 @@ func main() {
     log.T(ctx, "trace message")
 }
 ```
+
+The above code produces the following result.
+
+![Output](https://user-images.githubusercontent.com/5354910/226194821-bd4e7211-b829-4927-a230-eca72701957a.png)
 
 if you want to add a contextual field to an existing context, you can use the `logy.PutValue()` function
 to directly modify the context. However, note that this should not be done across multiple goroutines as it is not safe.
@@ -207,9 +228,9 @@ As an alternative, you can configure the logging by invoking `logy.LoadConfig()`
 ```go
 func init() {
     err := logy.LoadConfig(&logy.Config{
-            Level:    logy.LevelTrace,
-            Handlers: logy.Handlers{"console", "file"},
-            Console: &logy.ConsoleConfig{
+        Level:    logy.LevelTrace,
+        Handlers: logy.Handlers{"console", "file"},
+        Console: &logy.ConsoleConfig{
             Level:   logy.LevelTrace,
             Enabled: true,
             // this will be ignored because console json logging is enabled
@@ -356,7 +377,6 @@ logy:
     enabled: true
     # Send output to stderr
     target: stderr
-    format: "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p : %s%e%n"
     level: DEBUG
     json: 
       enabled: true
