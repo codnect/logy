@@ -63,8 +63,8 @@ func main() {
 	
 	// logy.WithValue() returns a new context with the given field and copies any 
 	// existing contextual fields if they exist.
-	// This ensures that the original context is not modified 
-	// and avoids any potential issues.
+	// This ensures that the original context is not modified and avoids any potential 
+	// issues.
 	ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
 	// It will create a new context with the spanId and copies the existing fields
 	ctx = logy.WithValue(ctx, "spanId", "anySpanId")
@@ -120,23 +120,16 @@ log := logy.Of[http.Client]
 ```
 This will create a logger with the name `net/http.Client`.
 
-Invoking the `logy.Named()` function with the same name or the `logy.New()`function in the same package will return always the exact same Logger.
+Invoking the `logy.Named()` function with the same name or the `logy.Get()`function in the same package will return always the exact same Logger.
 
 ```go
-package test
+// x and y loggers will be the same
+x = logy.Named("foo")
+y = logy.Named("foo")
 
-import (
-	"github.com/procyon-projects/logy"
-)
-
-var (
-    // x and y loggers will be the same
-    x = logy.Named("foo")
-    y = logy.Named("foo")
-    // z and q loggers will be the same
-    z = logy.New()
-    q = logy.New()
-)
+// z and q loggers will be the same
+z = logy.Get()
+q = logy.Get()
 ```
 
 ## Log Handlers
@@ -367,6 +360,9 @@ logy:
     level: DEBUG
     json: 
       enabled: true
+      excluded-keys:
+        - level
+        - logger
       key-overrides:
         timestamp: "@timestamp"
       additional-fields:
@@ -402,6 +398,9 @@ logy:
     path: /var
     json: 
       enabled: true
+      excluded-keys:
+        - level
+        - logger
       key-overrides:
         timestamp: "@timestamp"
       additional-fields:
