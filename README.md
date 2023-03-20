@@ -650,6 +650,14 @@ Here is the benchmark results.
 | apex/log                | 14494 ns/op  |   53 allocs/op    |
 | logrus                  | 16246 ns/op  |   68 allocs/op    |
 
+Stargazers
+-----------
+[![Stargazers repo roster for @procyon-projects/logy](https://reporoster.com/stars/procyon-projects/logy)](https://github.com/procyon-projects/logy/stargazers)
+
+Forkers
+-----------
+[![Forkers repo roster for @procyon-projects/logy](https://reporoster.com/forks/procyon-projects/logy)](https://github.com/procyon-projects/logy/network/members)
+
 # License
 
-Logy is released under MIT License.
+Logy is released under [MIT License](https://github.com/procyon-projects/logy/blob/main/LICENSE).
