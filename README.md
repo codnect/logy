@@ -31,20 +31,20 @@ Here's an example of how to use Logy:
 package main
 
 import (
-    "context"
-    "github.com/procyon-projects/logy"
+	"context"
+	"github.com/procyon-projects/logy"
 )
 
 func main() {
-    // logy.Get() creates a logger with the name of the package it is called from
-    log := logy.Get()
+	// logy.Get() creates a logger with the name of the package it is called from
+	log := logy.Get()
 
-    // Logging messages with different log levels
-    log.Info("This is an information message")
-    log.Warn("This is a warning message")
-    log.Error("This is an error message")
-    log.Debug("This is a debug message")
-    log.Trace("This is a trace message")
+	// Logging messages with different log levels
+	log.Info("This is an information message")
+	log.Warn("This is a warning message")
+	log.Error("This is an error message")
+	log.Debug("This is a debug message")
+	log.Trace("This is a trace message")
 }
 ```
 
@@ -70,36 +70,36 @@ import (
 )
 
 func main() {
-    // logy.Get() creates a logger with the name of the package it is called from
-    log := logy.Get()
+	// logy.Get() creates a logger with the name of the package it is called from
+	log := logy.Get()
 
-    // Change console log format
-    err := logy.LoadConfig(&logy.Config{
-        Console: &logy.ConsoleConfig{
-            Enabled: true,
-            Format:  "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p %c : %s%e%n",
-            Color:   true,
-        },
-    })
-	
-    if err != nil {
-        panic(err)
-    }
-	
-    // logy.WithValue() returns a new context with the given field and copies any 
-    // existing contextual fields if they exist.
-    // This ensures that the original context is not modified and avoids any potential 
-    // issues.
-    ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
-    // It will create a new context with the spanId and copies the existing fields
-    ctx = logy.WithValue(ctx, "spanId", "anySpanId")
-	
-    // Logging messages with contextual fields
-    log.I(ctx, "info message")
-    log.W(ctx, "warning message")
-    log.E(ctx, "error message")
-    log.D(ctx, "debug message")
-    log.T(ctx, "trace message")
+	// Change console log format
+	err := logy.LoadConfig(&logy.Config{
+		Console: &logy.ConsoleConfig{
+			Enabled: true,
+			Format:  "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p %c : %s%e%n",
+			Color:   true,
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	// logy.WithValue() returns a new context with the given field and copies any 
+	// existing contextual fields if they exist.
+	// This ensures that the original context is not modified and avoids any potential 
+	// issues.
+	ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
+	// It will create a new context with the spanId and copies the existing fields
+	ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+
+	// Logging messages with contextual fields
+	log.I(ctx, "info message")
+	log.W(ctx, "warning message")
+	log.E(ctx, "error message")
+	log.D(ctx, "debug message")
+	log.T(ctx, "trace message")
 }
 ```
 
@@ -116,8 +116,8 @@ logy.PutValue(ctx, "traceId", "anotherTraceId")
 ```
 
 ### Parameterized Logging
-Logy provides support for parameterized log messages.
 
+Logy provides support for parameterized log messages.
 
 ```go
 package main
@@ -141,6 +141,113 @@ The output of the above code execution looks as follows:
 
 ```bash
 2023-03-19 21:13:06.029186  INFO github.com/procyon-projects/logy/test    : The value 30 should be between 128 and 256
+```
+
+### JSON Logging Format
+
+Here is an example of how to enable the JSON formatting for console handler.
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/procyon-projects/logy"
+)
+
+func main() {
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
+	
+    // Enabled the Json logging
+    err := logy.LoadConfig(&logy.Config{
+        Console: &logy.ConsoleConfig{
+            Enabled: true,
+            Json: &logy.JsonConfig{
+                Enabled: true,
+            },
+        },
+    })
+
+    if err != nil {
+       panic(err)
+    }
+
+    // logy.WithValue() returns a new context with the given field and copies any
+    // existing contextual fields if they exist.
+    ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
+    // It will create a new context with the spanId and copies the existing fields
+    ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+
+    // Logging an information message
+    log.Info("This is an information message")
+
+    // Logging an information message with contextual fields
+    log.I(ctx, "info message")
+}
+```
+
+The output of the above code execution looks as follows:
+
+```bash
+{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"github.com/procyon-projects/logy/test","message":"This is an information message"}
+{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"github.com/procyon-projects/logy/test","message":"info message","mappedContext":{"traceId":"anyTraceId","spanId":"anySpanId"}}
+```
+
+### Error and Stack Trace Logging
+If you pass an error to the logging methods as the last argument, it will print the full stack trace along with the given error.
+
+Here is an example:
+
+```go
+package main
+
+import (
+    "context"
+    "errors"
+    "github.com/procyon-projects/logy"
+)
+
+func main() {
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
+	
+    value := "anyValue"
+    err := errors.New("an error occurred")
+
+    // Note that there must not be placeholder(curly braces) for the error. 
+    // Otherwise, the only error string will be printed.
+    log.Info("The value {} was not inserted", value, err)
+    log.Warn("The value {} was not inserted", value, err)
+    log.Error("The value {} was not inserted", value, err)
+    log.Debug("The value {} was not inserted", value, err)
+    log.Error("The value {} was not inserted", value, err)
+}
+```
+
+The output of the above code execution looks as follows:
+
+```bash
+2023-03-20 21:17:03.165347  INFO github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+Error: an error occurred
+main.main()
+    /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:19
+2023-03-20 21:17:03.165428  WARN github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+Error: an error occurred
+main.main()
+    /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:20
+2023-03-20 21:17:03.165434 ERROR github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+Error: an error occurred
+main.main()
+    /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:21
+2023-03-20 21:17:03.165438 DEBUG github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+Error: an error occurred
+main.main()
+    /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:22
+2023-03-20 21:17:03.165441 ERROR github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+Error: an error occurred
+main.main()
+    /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:23
 ```
 
 ### Loggers
@@ -221,10 +328,8 @@ the syslog server runs on the same host as the application)
 
 ### External Log Handler
 
-Customized log handlers that implements the `Handler` interface can be used, but you need to register them by
-calling `logy.RegisterHandler()`
-function. After registration, it's ready for receiving log messages and output them.
-
+If you want a custom log handler, you can create your own log handler by implementing `logy.Handler` interface.
+After completing its implementation, you must register it by using `logy.RegisterHandler` function.
 ```go
 type Handler interface {
     Handle(record Record) error
@@ -315,9 +420,10 @@ func init() {
         },
     })
 
-if err != nil {
-panic(err)
-}
+    if err != nil {
+        panic(err)
+    }
+
 }
 ```
 
@@ -339,10 +445,10 @@ For every package the same settings that are configured on ( console / file / sy
 
 The root logger is handled separately, and is configured via the following properties:
 
-| Property        |                         Description                         |           Type |  Default  |
-|:----------------|:-----------------------------------------------------------:|---------------:|:---------:|
-| `logy.level`    |             The log level for every log package             |           bool |  `TRACE`  |
-| `logy.handlers` |          The names of handlers to link to the root          | list of string | [console] |
+| Property        |                Description                |           Type |  Default  |
+|:----------------|:-----------------------------------------:|---------------:|:---------:|
+| `logy.level`    |    The log level for every log package    |           bool |  `TRACE`  |
+| `logy.handlers` | The names of handlers to link to the root | list of string | [console] |
 
 ### Logging Format
 
@@ -382,31 +488,33 @@ Supported logging format symbols:
 
 You can configure the console handler with the following configuration properties:
 
-| Property                                              |                                         Description                                         |                                         Type |                   Default                    |
-|:------------------------------------------------------|:-------------------------------------------------------------------------------------------:|---------------------------------------------:|:--------------------------------------------:|
-| `logy.console.enabled`                                |                                 Enable the console logging                                  |                                         bool |                    `true`                    |
-| `logy.console.target`                                 |                              Override keys with custom values                               |        Target(`stdout`, `stderr`, `discard`) |                   `stdout`                   |
-| `logy.console.format`                                 | The console log format. Note that this value will be ignored if json is enabled for console |                                       string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
-| `logy.console.color`                                  |                Enable color coded output if the target terminal supports it                 |                                         bool |                    `true`                    |
-| `logy.console.level`                                  |                                    The console log level                                    | Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
-| `logy.console.json.enabled`                           |                             Enable the JSON console formatting                              |                                         bool |                   `false`                    |
-| `logy.console.json.key-overrides`.`property-name`     |                              Override keys with custom values                               |                            map[string]string |                                              |
-| `logy.console.json.additional-fields`.`property-name` |                                   Additional field values                                   |                               map[string]any |                                              |
+| Property                                              |                                         Description                                         |                                                     Type |                   Default                    |
+|:------------------------------------------------------|:-------------------------------------------------------------------------------------------:|---------------------------------------------------------:|:--------------------------------------------:|
+| `logy.console.enabled`                                |                                 Enable the console logging                                  |                                                     bool |                    `true`                    |
+| `logy.console.target`                                 |                              Override keys with custom values                               |                    Target(`stdout`, `stderr`, `discard`) |                   `stdout`                   |
+| `logy.console.format`                                 | The console log format. Note that this value will be ignored if json is enabled for console |                                                   string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
+| `logy.console.color`                                  |                Enable color coded output if the target terminal supports it                 |                                                     bool |                    `true`                    |
+| `logy.console.level`                                  |                                    The console log level                                    | Level(`OFF`,`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`,`ALL`) |                   `TRACE`                    |
+| `logy.console.json.enabled`                           |                             Enable the JSON console formatting                              |                                                     bool |                   `false`                    |
+| `logy.console.json.excluded-keys`                     |                          Keys to be excluded from the Json output                           |                                           list of string |                                              |
+| `logy.console.json.key-overrides`.`property-name`     |                              Override keys with custom values                               |                                        map[string]string |                                              |
+| `logy.console.json.additional-fields`.`property-name` |                                   Additional field values                                   |                                           map[string]any |                                              |
 
 ### File Handler Properties
 
 You can configure the file handler with the following configuration properties:
 
-| Property                                           |                                      Description                                      |                                         Type |                   Default                    |
-|:---------------------------------------------------|:-------------------------------------------------------------------------------------:|---------------------------------------------:|:--------------------------------------------:|
-| `logy.file.enabled`                                |                                Enable the file logging                                |                                         bool |                   `false`                    |
-| `logy.file.format`                                 | The file log format. Note that this value will be ignored if json is enabled for file |                                       string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
-| `logy.file.name`                                   |                  The name of the file in which logs will be written                   |                                       string |                  `logy.log`                  |
-| `logy.file.path`                                   |                  The path of the file in which logs will be written                   |                                       string |              Working directory               |
-| `logy.file.level`                                  |                     The level of logs to be written into the file                     | Level(`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`) |                   `TRACE`                    |
-| `logy.file.json.enabled`                           |                            Enable the JSON file formatting                            |                                         bool |                   `false`                    |
-| `logy.file.json.key-overrides`.`property-name`     |                           Override keys with custom values                            |                            map[string]string |                                              |
-| `logy.file.json.additional-fields`.`property-name` |                                Additional field values                                |                               map[string]any |                                              |
+| Property                                           |                                          Description                                           |                                                     Type |                   Default                    |
+|:---------------------------------------------------|:----------------------------------------------------------------------------------------------:|---------------------------------------------------------:|:--------------------------------------------:|
+| `logy.file.enabled`                                |                                    Enable the file logging                                     |                                                     bool |                   `false`                    |
+| `logy.file.format`                                 |     The file log format. Note that this value will be ignored if json is enabled for file      |                                                   string | `d{2006-01-02 15:04:05.000000} %p %c : %m%n` |
+| `logy.file.name`                                   |                       The name of the file in which logs will be written                       |                                                   string |                  `logy.log`                  |
+| `logy.file.path`                                   |                       The path of the file in which logs will be written                       |                                                   string |              Working directory               |
+| `logy.file.level`                                  |                         The level of logs to be written into the file                          | Level(`OFF`,`ERROR`,`WARN`,`INFO`,`DEBUG`,`TRACE`,`ALL`) |                   `TRACE`                    |
+| `logy.file.json.enabled`                           |                                Enable the JSON file formatting                                 |                                                     bool |                   `false`                    |
+| `logy.file.json.excluded-keys`                     |                            Keys to be excluded from the Json output                            |                                           list of string |                                              |
+| `logy.file.json.key-overrides`.`property-name`     |                                Override keys with custom values                                |                                        map[string]string |                                              |
+| `logy.file.json.additional-fields`.`property-name` |                                    Additional field values                                     |                                           map[string]any |                                              |
 
 ### Syslog Handler Properties
 
@@ -453,7 +561,7 @@ logy:
     # Send output to stderr
     target: stderr
     level: DEBUG
-    json: 
+    json:
       enabled: true
       excluded-keys:
         - level
@@ -491,7 +599,7 @@ logy:
     # Send output to a file_trace.log under the /var directory
     name: file_trace.log
     path: /var
-    json: 
+    json:
       enabled: true
       excluded-keys:
         - level
