@@ -1,5 +1,9 @@
 ![Logy logo](https://user-images.githubusercontent.com/5354910/224152840-2c913efa-f7c3-41ea-b0cc-a215a7ec02cf.png)
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/procyon-projects/logy)](https://goreportcard.com/report/github.com/procyon-projects/logy)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/procyon-projects/logy/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/procyon-projects/logy/tree/main)
+[![codecov](https://codecov.io/gh/procyon-projects/logy/branch/main/graph/badge.svg?token=zDm2iL6XLM)](https://codecov.io/gh/procyon-projects/logy)
+
 # Logy
 
 The Logy is a fast, configurable, and easy-to-use logger for Go applications. It supports various logging levels,
