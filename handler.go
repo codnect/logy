@@ -28,6 +28,7 @@ type Handler interface {
 	SetEnabled(enabled bool)
 	IsEnabled() bool
 	IsLoggable(record Record) bool
+	Writer() io.Writer
 }
 
 type ConfigurableHandler interface {
@@ -64,9 +65,12 @@ type commonHandler struct {
 	json                 atomic.Value
 	format               atomic.Value
 	isConsole            atomic.Value
+	keyOverrides         atomic.Value
 	additionalFields     atomic.Value
 	additionalFieldsJson atomic.Value
 	color                atomic.Value
+
+	excludedFields atomic.Value
 
 	timestampKey     atomic.Value
 	mappedContextKey atomic.Value
@@ -75,14 +79,19 @@ type commonHandler struct {
 	messageKey       atomic.Value
 	errorKey         atomic.Value
 	stackTraceKey    atomic.Value
+
+	enabledKeys atomic.Value
 }
 
 func (h *commonHandler) initializeHandler() {
-	h.SetAdditionalFields(JsonAdditionalFields{})
+	h.SetAdditionalFields(AdditionalFields{})
 	h.SetJsonEnabled(false)
 	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
 	h.color.Store(false)
+	h.excludedFields.Store(ExcludedKeys{})
+	h.enabledKeys.Store(allKeysEnabled)
+	h.keyOverrides.Store(KeyOverrides{})
 
 	h.resetKeys()
 }
@@ -97,12 +106,11 @@ func (h *commonHandler) resetKeys() {
 	h.stackTraceKey.Store(StackTraceKey)
 }
 
-func (h *commonHandler) overrideKeys(overrides KeyOverrides) {
-	if len(overrides) == 0 {
-		return
-	}
+func (h *commonHandler) SetKeyOverrides(overrides KeyOverrides) {
+	h.resetKeys()
 
 	for key, value := range overrides {
+
 		switch key {
 		case TimestampKey:
 			h.timestampKey.Store(value)
@@ -120,17 +128,36 @@ func (h *commonHandler) overrideKeys(overrides KeyOverrides) {
 			h.stackTraceKey.Store(value)
 		}
 	}
+
+	if len(overrides) == 0 {
+		h.keyOverrides.Store(KeyOverrides{})
+	} else {
+		h.keyOverrides.Store(overrides)
+	}
+}
+
+func (h *commonHandler) KeyOverrides() KeyOverrides {
+	copyOfOverrides := make(KeyOverrides)
+	overrides := h.keyOverrides.Load().(KeyOverrides)
+
+	for key, value := range overrides {
+		copyOfOverrides[key] = value
+	}
+
+	return copyOfOverrides
 }
 
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 	if jsonConfig != nil {
-		h.SetJsonEnabled(true)
+		h.SetJsonEnabled(jsonConfig.Enabled)
+		h.SetKeyOverrides(jsonConfig.KeyOverrides)
+		h.SetExcludedKeys(jsonConfig.ExcludedKeys)
 		h.SetAdditionalFields(jsonConfig.AdditionalFields)
-		h.overrideKeys(jsonConfig.KeyOverrides)
 	} else {
 		h.SetJsonEnabled(false)
-		h.SetAdditionalFields(JsonAdditionalFields{})
-		h.resetKeys()
+		h.SetKeyOverrides(KeyOverrides{})
+		h.SetExcludedKeys(ExcludedKeys{})
+		h.SetAdditionalFields(AdditionalFields{})
 	}
 }
 
@@ -213,9 +240,82 @@ func (h *commonHandler) IsJsonEnabled() bool {
 	return h.json.Load().(bool)
 }
 
-func (h *commonHandler) SetAdditionalFields(additionalFields JsonAdditionalFields) {
+func (h *commonHandler) SetExcludedKeys(excludedKeys ExcludedKeys) {
+	filteredKeys := make(ExcludedKeys, 0)
+	enabledKeysFlag := allKeysEnabled
+
+	timestampKey := h.timestampKey.Load().(string)
+	mappedContextKey := h.mappedContextKey.Load().(string)
+	levelKey := h.levelKey.Load().(string)
+	loggerKey := h.loggerKey.Load().(string)
+	messageKey := h.messageKey.Load().(string)
+	errorKey := h.errorKey.Load().(string)
+	stackTraceKey := h.stackTraceKey.Load().(string)
+
+	for _, excludedKey := range excludedKeys {
+		switch excludedKey {
+		case timestampKey:
+			enabledKeysFlag ^= timestampKeyEnabled
+		case mappedContextKey:
+			enabledKeysFlag ^= mappedContextKeyEnabled
+		case levelKey:
+			enabledKeysFlag ^= levelKeyEnabled
+		case loggerKey:
+			enabledKeysFlag ^= loggerKeyEnabled
+		case messageKey:
+			enabledKeysFlag ^= messageKeyEnabled
+		case errorKey:
+			enabledKeysFlag ^= errorKeyEnabled
+		case stackTraceKey:
+			enabledKeysFlag ^= stackTraceKeyEnabled
+		default:
+			filteredKeys = append(filteredKeys, excludedKey)
+		}
+	}
+
+	h.enabledKeys.Store(enabledKeysFlag)
+	h.excludedFields.Store(filteredKeys)
+}
+
+func (h *commonHandler) ExcludedKeys() []string {
+	excludedKeys := make([]string, 0)
+	enabledKeys := h.enabledKeys.Load().(int)
+
+	if enabledKeys&timestampKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, TimestampKey)
+	}
+
+	if enabledKeys&mappedContextKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, MappedContextKey)
+	}
+
+	if enabledKeys&levelKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, LevelKey)
+	}
+
+	if enabledKeys&loggerKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, LoggerKey)
+	}
+
+	if enabledKeys&messageKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, MessageKey)
+	}
+
+	if enabledKeys&errorKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, ErrorKey)
+	}
+
+	if enabledKeys&stackTraceKeyEnabled == 0 {
+		excludedKeys = append(excludedKeys, StackTraceKey)
+	}
+
+	excludedKeys = append(excludedKeys, h.excludedFields.Load().([]string)...)
+	return excludedKeys
+}
+
+func (h *commonHandler) SetAdditionalFields(additionalFields AdditionalFields) {
 	if len(additionalFields) == 0 {
-		additionalFields = JsonAdditionalFields{}
+		additionalFields = AdditionalFields{}
 	}
 
 	h.additionalFields.Store(additionalFields)
@@ -233,9 +333,9 @@ func (h *commonHandler) SetAdditionalFields(additionalFields JsonAdditionalField
 	putJSONEncoder(encoder)
 }
 
-func (h *commonHandler) AdditionalFields() JsonAdditionalFields {
-	additionalFields := h.additionalFields.Load().(JsonAdditionalFields)
-	copyOfFields := make(JsonAdditionalFields, 0)
+func (h *commonHandler) AdditionalFields() AdditionalFields {
+	additionalFields := h.additionalFields.Load().(AdditionalFields)
+	copyOfFields := make(AdditionalFields, 0)
 
 	for key, value := range additionalFields {
 		copyOfFields[key] = value

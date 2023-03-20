@@ -1,10 +1,13 @@
 package logy
 
-import (
-	"context"
-)
+import "context"
 
-const ContextKey = "$logyMappedContext"
+const ContextFieldsKey = "logyContextFields"
+
+var (
+	defaultIterator = &Iterator{}
+	defaultField    = Field{}
+)
 
 type Field struct {
 	key       string
@@ -30,196 +33,221 @@ func (f Field) AsJson() string {
 }
 
 type Iterator struct {
-	fields  []Field
+	fields  *[]Field
 	current int
 }
 
 func (i *Iterator) HasNext() bool {
-	return i.current < len(i.fields)
+	return i.current < len(*i.fields)
 }
 
 func (i *Iterator) Next() (Field, bool) {
-	if i.current >= len(i.fields) {
+	if i.current >= len(*i.fields) {
 		return Field{}, false
 	}
 
-	field := i.fields[i.current]
+	field := (*i.fields)[i.current]
 	i.current++
 	return field, true
 }
 
-type MappedContext struct {
-	values      []Field
-	keyIndexMap map[string]int
-	textEncoder *textEncoder
-	jsonEncoder *jsonEncoder
+type ContextFields struct {
+	fields []Field
 }
 
-func NewMappedContext() *MappedContext {
-	mc := &MappedContext{
-		values:      []Field{},
-		textEncoder: getTextEncoder(newBuffer()),
-		jsonEncoder: getJSONEncoder(newBuffer()),
-		keyIndexMap: map[string]int{},
-	}
-
-	return mc
+func NewContextFields() *ContextFields {
+	contextFields := &ContextFields{}
+	return contextFields
 }
 
-func (mc *MappedContext) Size() int {
-	return len(mc.values)
+func withField(field Field) *ContextFields {
+	contextFields := NewContextFields()
+	contextFields.fields = append(contextFields.fields, field)
+	return contextFields
 }
 
-func (mc *MappedContext) resetEncoders() {
-	mc.textEncoder.buf.Reset()
-	mc.jsonEncoder.buf.Reset()
-}
-
-func (mc *MappedContext) putText(index int, value any) {
-	mc.textEncoder.AppendAny(value)
-	mc.values[index].textValue = mc.textEncoder.buf.String()
-}
-
-func (mc *MappedContext) putJson(index int, key string, value any) {
-	mc.jsonEncoder.buf.WriteByte('{')
-	mc.jsonEncoder.AddAny(key, value)
-	mc.jsonEncoder.buf.WriteByte('}')
-	mc.values[index].jsonValue = mc.jsonEncoder.buf.String()
-}
-
-func (mc *MappedContext) Put(key string, value any) {
-	mc.clone()
-	mc.resetEncoders()
-
-	if index, ok := mc.keyIndexMap[key]; ok {
-		mc.values[index].value = value
-		mc.putText(index, value)
-		mc.putJson(index, key, value)
-	} else {
-		field := Field{
-			key,
-			value,
-			"",
-			"",
+func (cf *ContextFields) Field(name string) (Field, bool) {
+	for _, field := range cf.fields {
+		if field.key == name {
+			return field, true
 		}
-
-		index := len(mc.values)
-		mc.keyIndexMap[key] = index
-		mc.values = append(mc.values, field)
-
-		mc.putText(index, value)
-		mc.putJson(index, key, value)
 	}
 
-	mc.resetEncoders()
+	return defaultField, false
 }
 
-func (mc *MappedContext) Field(key string) (Field, bool) {
-	if index, ok := mc.keyIndexMap[key]; ok {
-		return mc.values[index], true
+func (cf *ContextFields) IsEmpty() bool {
+	return len(cf.fields) == 0
+}
+
+func (cf *ContextFields) Iterator() *Iterator {
+	if len(cf.fields) == 0 {
+		return defaultIterator
 	}
 
-	return Field{}, false
-}
-
-func (mc *MappedContext) Iterator() *Iterator {
 	return &Iterator{
-		fields:  mc.values,
+		fields:  &cf.fields,
 		current: 0,
 	}
 }
 
-func (mc *MappedContext) clone() *MappedContext {
-	c := *mc
+func (cf *ContextFields) put(another Field) {
+	added := false
 
-	copyOfFields := make([]Field, len(mc.values))
-	for index, field := range mc.values {
-		copyOfFields[index] = field
+	for i, field := range cf.fields {
+		if field.key == another.key {
+			cf.fields[i] = another
+			added = true
+		} else {
+			cf.fields[i] = field
+		}
 	}
-	c.values = copyOfFields
 
-	copyOfKeyIndexMap := make(map[string]int, len(mc.keyIndexMap))
-	for key, val := range mc.keyIndexMap {
-		copyOfKeyIndexMap[key] = val
+	if !added {
+		cf.fields = append(cf.fields, another)
 	}
-	c.keyIndexMap = copyOfKeyIndexMap
-
-	c.textEncoder = getTextEncoder(newBuffer())
-	c.jsonEncoder = getJSONEncoder(newBuffer())
-	return &c
 }
 
-func MappedContextFrom(ctx context.Context) *MappedContext {
+func (cf *ContextFields) cloneWith(another Field) *ContextFields {
+	clone := *cf
+	added := false
+
+	copyOfFields := make([]Field, len(cf.fields))
+
+	for i, field := range cf.fields {
+		if field.key == another.key {
+			copyOfFields[i] = another
+			added = true
+		} else {
+			copyOfFields[i] = field
+		}
+	}
+
+	if !added {
+		copyOfFields = append(copyOfFields, another)
+	}
+
+	clone.fields = copyOfFields
+	return &clone
+}
+
+func WithContextFields(parent context.Context) context.Context {
+	return context.WithValue(parent, ContextFieldsKey, NewContextFields())
+}
+
+func ContextFieldsFrom(ctx context.Context) *ContextFields {
 	if ctx == nil {
 		return nil
 	}
 
-	val := ctx.Value(ContextKey)
-
+	val := ctx.Value(ContextFieldsKey)
 	if val != nil {
-		if mc, isMc := val.(*MappedContext); isMc {
-			return mc
+		switch typed := val.(type) {
+		case *ContextFields:
+			return typed
 		}
-
-		return nil
 	}
 
 	return nil
 }
 
-func WithMappedContext(ctx context.Context) context.Context {
-	mc := MappedContextFrom(ctx)
-
-	if mc != nil {
-		return context.WithValue(ctx, ContextKey, mc.clone())
+func PutValue(ctx context.Context, key string, value any) {
+	if ctx == nil {
+		panic("nil ctx")
 	}
 
-	return context.WithValue(ctx, ContextKey, NewMappedContext())
-}
+	if key == "" {
+		panic("empty key")
+	}
 
-func PutValue(ctx context.Context, key string, val any) {
-	ctxVal := ctx.Value(ContextKey)
+	val := ctx.Value(ContextFieldsKey)
 
-	if ctxVal != nil {
-		if mc, isMc := ctxVal.(*MappedContext); isMc {
-			mc.Put(key, val)
+	field := Field{
+		key:   key,
+		value: value,
+	}
+
+	if val != nil {
+		switch typed := val.(type) {
+		case *ContextFields:
+			buf := newBuffer()
+			defer buf.Free()
+
+			jsonEncoder := getJSONEncoder(buf)
+			jsonEncoder.buf.WriteByte('{')
+			jsonEncoder.AddAny(key, value)
+			jsonEncoder.buf.WriteByte('}')
+			field.jsonValue = jsonEncoder.buf.String()
+
+			putJSONEncoder(jsonEncoder)
+			buf.Reset()
+
+			textEncoder := getTextEncoder(buf)
+			textEncoder.AppendAny(value)
+			field.textValue = textEncoder.buf.String()
+
+			putTextEncoder(textEncoder)
+			buf.Reset()
+
+			typed.put(field)
 		}
 	}
 }
 
 func WithValue(parent context.Context, key string, value any) context.Context {
-	ctx := WithMappedContext(parent)
-	val := ctx.Value(ContextKey)
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+
+	val := parent.Value(ContextFieldsKey)
+
+	field := Field{
+		key:   key,
+		value: value,
+	}
+
+	buf := newBuffer()
+	defer buf.Free()
+
+	jsonEncoder := getJSONEncoder(buf)
+	jsonEncoder.buf.WriteByte('{')
+	jsonEncoder.AddAny(key, value)
+	jsonEncoder.buf.WriteByte('}')
+	field.jsonValue = jsonEncoder.buf.String()
+
+	putJSONEncoder(jsonEncoder)
+	buf.Reset()
+
+	textEncoder := getTextEncoder(buf)
+	textEncoder.AppendAny(value)
+	field.textValue = textEncoder.buf.String()
+
+	putTextEncoder(textEncoder)
+	buf.Reset()
 
 	if val != nil {
-		if mc, isMc := val.(*MappedContext); isMc {
-			mc.Put(key, value)
+		switch typed := val.(type) {
+		case *ContextFields:
+			return context.WithValue(parent, ContextFieldsKey, typed.cloneWith(field))
 		}
 	}
 
-	return ctx
+	return context.WithValue(parent, ContextFieldsKey, withField(field))
 }
 
-func ValueFrom(ctx context.Context, key string) (any, bool) {
-	mc := MappedContextFrom(ctx)
-
-	if mc == nil {
-		return nil, false
+func Values(ctx context.Context) *Iterator {
+	if ctx == nil {
+		panic("nil ctx")
 	}
 
-	field, ok := mc.Field(key)
-	return field.Value(), ok
-}
+	val := ctx.Value(ContextFieldsKey)
 
-func IteratorFrom(ctx context.Context) *Iterator {
-	mc := MappedContextFrom(ctx)
-
-	if mc == nil {
-		return &Iterator{}
+	if val != nil {
+		switch typed := val.(type) {
+		case *ContextFields:
+			return typed.Iterator()
+		}
 	}
 
-	return &Iterator{
-		fields:  mc.values,
-		current: 0,
-	}
+	return defaultIterator
 }

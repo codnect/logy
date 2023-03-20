@@ -51,7 +51,7 @@ func SetAsDefaultLogger() {
 	log.SetFlags(0)
 }
 
-func New() *Logger {
+func Get() *Logger {
 	rpc := make([]uintptr, 1)
 	runtime.Callers(2, rpc[:])
 	frame, _ := runtime.CallersFrames(rpc).Next()
@@ -451,6 +451,7 @@ func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
 	record.StackTrace = string(buf)
 }
 
+/*
 func I(ctx context.Context, msg string, args ...any) {
 	_ = rootLogger.logDepth(1, ctx, LevelInfo, msg, args...)
 }
@@ -510,3 +511,4 @@ func Trace(msg string, args ...any) {
 func IsTraceEnabled() bool {
 	return rootLogger.IsTraceEnabled()
 }
+*/

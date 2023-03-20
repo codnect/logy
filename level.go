@@ -28,15 +28,19 @@ var (
 		"INFO":  LevelInfo,
 		"WARN":  LevelWarn,
 		"ERROR": LevelError,
+		"ALL":   LevelAll,
+		"OFF":   LevelOff,
 	}
 )
 
 const (
-	LevelError Level = iota + 1
+	LevelOff Level = iota + 1
+	LevelError
 	LevelWarn
 	LevelInfo
 	LevelDebug
 	LevelTrace
+	LevelAll
 )
 
 func (l Level) syslogLevel() syslogLevel {
@@ -64,8 +68,12 @@ func (l Level) String() string {
 		return "INFO"
 	case LevelWarn:
 		return "WARN"
-	default:
+	case LevelError:
 		return "ERROR"
+	case LevelOff:
+		return "OFF"
+	default:
+		return "ALL"
 	}
 }
 
@@ -85,7 +93,7 @@ func (l *Level) UnmarshalYAML(node *yaml.Node) error {
 	if val, ok := levelValues[strings.ToUpper(node.Value)]; ok {
 		*l = val
 	} else {
-		*l = LevelTrace
+		*l = LevelAll
 	}
 
 	return nil
@@ -100,7 +108,7 @@ func (l *Level) UnmarshalJSON(data []byte) error {
 	if val, ok := levelValues[strings.ToUpper(level)]; ok {
 		*l = val
 	} else {
-		*l = LevelTrace
+		*l = LevelAll
 	}
 
 	return nil

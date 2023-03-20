@@ -21,65 +21,96 @@ const (
 	StackTraceKey    = "stack_trace"
 )
 
+const (
+	timestampKeyEnabled = 1 << iota
+	mappedContextKeyEnabled
+	levelKeyEnabled
+	loggerKeyEnabled
+	messageKeyEnabled
+	errorKeyEnabled
+	stackTraceKeyEnabled
+	allKeysEnabled = timestampKeyEnabled | mappedContextKeyEnabled | levelKeyEnabled | loggerKeyEnabled | messageKeyEnabled | errorKeyEnabled | stackTraceKeyEnabled
+)
+
 var (
 	processId   = os.Getpid()
 	processName = filepath.Base(os.Args[0])
 )
 
 func (h *commonHandler) formatContextValues(encoder *textEncoder, ctx context.Context, withKeys bool) {
-	iterator := IteratorFrom(ctx)
-	inCommaState := false
+	contextFields := ContextFieldsFrom(ctx)
+	excludedFields := h.excludedFields.Load().([]string)
 
-	for {
-		field, ok := iterator.Next()
-		if !ok {
-			break
+	if contextFields != nil {
+		fieldLen := len(contextFields.fields)
+
+		for i, field := range contextFields.fields {
+			isExcluded := false
+
+			for _, excluded := range excludedFields {
+				if excluded == field.key {
+					isExcluded = true
+					break
+				}
+			}
+
+			if isExcluded {
+				continue
+			}
+
+			if i != fieldLen-1 {
+				encoder.buf.WriteString(", ")
+			}
+
+			if withKeys {
+				encoder.buf.WriteString(field.Key())
+				encoder.buf.WriteByte('=')
+			}
+
+			encoder.buf.WriteString(field.ValueAsText())
 		}
-
-		if inCommaState {
-			encoder.buf.WriteString(", ")
-			inCommaState = false
-		}
-
-		if withKeys {
-			encoder.buf.WriteString(field.Key())
-			encoder.buf.WriteByte('=')
-		}
-
-		encoder.buf.WriteString(field.ValueAsText())
-		inCommaState = true
 	}
 }
 
 func (h *commonHandler) formatContextValuesAsJson(encoder *jsonEncoder, ctx context.Context) {
-	iterator := IteratorFrom(ctx)
-	inCommaState := false
-
+	contextFields := ContextFieldsFrom(ctx)
+	excludedFields := h.excludedFields.Load().(ExcludedKeys)
 	encoder.buf.WriteString("{")
 
-	for {
-		field, ok := iterator.Next()
-		if !ok {
-			break
-		}
+	if contextFields != nil {
+		fieldLen := len(contextFields.fields)
 
-		if inCommaState {
-			encoder.buf.WriteByte(',')
-			inCommaState = false
-		}
+		for i, field := range contextFields.fields {
 
-		jsonVal := field.AsJson()
-		if len(jsonVal) != 0 {
-			encoder.buf.WriteString(jsonVal[1 : len(jsonVal)-1])
+			isExcluded := false
+			for _, excluded := range excludedFields {
+				if excluded == field.key {
+					isExcluded = true
+					break
+				}
+			}
+
+			if isExcluded {
+				continue
+			}
+
+			jsonVal := field.AsJson()
+
+			if len(jsonVal) != 0 {
+				encoder.buf.WriteString(jsonVal[1 : len(jsonVal)-1])
+			}
+
+			if i != fieldLen-1 {
+				encoder.buf.WriteByte(',')
+			}
 		}
-		inCommaState = true
 	}
 
 	encoder.buf.WriteString("}")
 }
 
 func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool, noPadding bool) {
-	mc := MappedContextFrom(record.Context)
+	contextFields := ContextFieldsFrom(record.Context)
 
 	i := 0
 	for j := 0; j < len(format); j++ {
@@ -105,9 +136,9 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'x': // context value without key
 				name, l := getPlaceholderName(format[j+2:])
 
-				if mc != nil {
+				if contextFields != nil {
 					if name != "" {
-						field, ok := mc.Field(name)
+						field, ok := contextFields.Field(name)
 						if ok {
 							encoder.buf.WriteString(field.ValueAsText())
 						}
@@ -120,9 +151,9 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'X': // context value with key
 				name, l := getPlaceholderName(format[j+2:])
 
-				if mc != nil {
+				if contextFields != nil {
 					if name != "" {
-						field, ok := mc.Field(name)
+						field, ok := contextFields.Field(name)
 						if ok {
 							encoder.buf.WriteString(name)
 							encoder.buf.WriteByte('=')
@@ -199,29 +230,40 @@ func appendLevelAsText(buf *buffer, level Level, color bool) {
 }
 
 func (h *commonHandler) formatJson(encoder *jsonEncoder, record Record) {
+	enabledKeys := h.enabledKeys.Load().(int)
+
 	// timestamp
-	encoder.AddTime(h.timestampKey.Load().(string), record.Time)
+	if enabledKeys&timestampKeyEnabled == timestampKeyEnabled {
+		encoder.AddTime(h.timestampKey.Load().(string), record.Time)
+	}
+
 	// level
-	encoder.AddString(h.levelKey.Load().(string), record.Level.String())
+	if enabledKeys&levelKeyEnabled == levelKeyEnabled {
+		encoder.AddString(h.levelKey.Load().(string), record.Level.String())
+	}
 
 	// logger name
-	encoder.AddString(h.loggerKey.Load().(string), record.LoggerName)
+	if enabledKeys&loggerKeyEnabled == loggerKeyEnabled {
+		encoder.AddString(h.loggerKey.Load().(string), record.LoggerName)
+	}
 
 	// message
-	encoder.AddString(h.messageKey.Load().(string), record.Message)
+	if enabledKeys&messageKeyEnabled == messageKeyEnabled {
+		encoder.AddString(h.messageKey.Load().(string), record.Message)
+	}
 
-	if record.StackTrace != "" {
+	if enabledKeys&stackTraceKeyEnabled == stackTraceKeyEnabled && record.StackTrace != "" {
 		// stack trace
 		encoder.AddString(h.stackTraceKey.Load().(string), record.StackTrace)
 	}
 
-	if record.Error != nil {
+	if enabledKeys&errorKeyEnabled == errorKeyEnabled && record.Error != nil {
 		// error
 		encoder.AddString(h.errorKey.Load().(string), record.Error.Error())
 	}
 
 	// mapped context
-	if record.Context != nil {
+	if enabledKeys&mappedContextKeyEnabled == mappedContextKeyEnabled && record.Context != nil {
 		encoder.addKey(h.mappedContextKey.Load().(string))
 		h.formatContextValuesAsJson(encoder, record.Context)
 	}

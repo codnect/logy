@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	DefaultTextFormat = "%d{2006-01-02 15:04:05.000000} %p %c : %m%n"
+	DefaultTextFormat = "%d{2006-01-02 15:04:05.000000} %p %c : %s%e%n"
 
 	DefaultLogFileName = "logy.log"
 	DefaultLogFilePath = "."
 
-	DefaultSyslogFormat   = "%d %p %m%s%n"
+	DefaultSyslogFormat   = "%d %p %s%e%n"
 	DefaultSyslogEndpoint = "localhost:514"
 
 	PropertyLevel   = "level"
@@ -24,24 +24,28 @@ const (
 
 var (
 	config = &Config{
-		Level:         LevelInfo,
-		IncludeCaller: true,
+		Level:         LevelTrace,
+		IncludeCaller: false,
 		Handlers:      []string{ConsoleHandlerName},
 		Console: &ConsoleConfig{
 			Enabled: true,
-			Target:  TargetStderr,
+			Target:  TargetStdout,
 			Format:  DefaultTextFormat,
 			Color:   true,
-			Level:   LevelDebug,
-			Json:    nil,
+			Level:   LevelTrace,
+			Json: &JsonConfig{
+				Enabled: false,
+			},
 		},
 		File: &FileConfig{
 			Name:    DefaultLogFileName,
 			Enabled: false,
 			Path:    DefaultLogFilePath,
 			Format:  DefaultTextFormat,
-			Level:   LevelDebug,
-			Json:    nil,
+			Level:   LevelTrace,
+			Json: &JsonConfig{
+				Enabled: false,
+			},
 		},
 		Syslog: &SyslogConfig{
 			Enabled:  false,
@@ -373,11 +377,14 @@ func (h *Handlers) UnmarshalYAML(node *yaml.Node) error {
 }
 
 type KeyOverrides map[string]string
-type JsonAdditionalFields map[string]any
+type ExcludedKeys []string
+type AdditionalFields map[string]any
 
 type JsonConfig struct {
-	KeyOverrides     KeyOverrides         `json:"key-overrides" xml:"key-overrides" yaml:"key-overrides"`
-	AdditionalFields JsonAdditionalFields `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
+	Enabled          bool             `json:"enabled" xml:"enabled" yaml:"enabled"`
+	ExcludedKeys     ExcludedKeys     `json:"excluded-keys" xml:"excluded-keys" yaml:"excluded-keys"`
+	KeyOverrides     KeyOverrides     `json:"key-overrides" xml:"key-overrides" yaml:"key-overrides"`
+	AdditionalFields AdditionalFields `json:"additional-fields" xml:"additional-fields" yaml:"additional-fields"`
 }
 
 type ConsoleConfig struct {
