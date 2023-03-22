@@ -1,6 +1,7 @@
 package logy
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -8,17 +9,19 @@ import (
 
 type FileHandler struct {
 	commonHandler
-	name atomic.Value
-	path atomic.Value
+	name      atomic.Value
+	path      atomic.Value
+	underTest atomic.Value
 }
 
-func newFileHandler() *FileHandler {
+func newFileHandler(underTest bool) *FileHandler {
 	handler := &FileHandler{}
 	handler.initializeHandler()
 
 	handler.SetEnabled(false)
 	handler.SetLevel(LevelInfo)
-	handler.setWriter(&discarder{})
+	handler.setWriter(newSyncWriter(&discarder{}))
+	handler.underTest.Store(underTest)
 	return handler
 }
 
@@ -51,14 +54,33 @@ func (h *FileHandler) OnConfigure(config Config) error {
 	h.setFileName(config.File.Name)
 	h.setFilePath(config.File.Path)
 
-	file, err := h.createLogFile(config.File.Path, config.File.Name)
-	if err != nil {
-		h.SetEnabled(false)
-		h.setWriter(&discarder{})
-		return err
+	underTest := h.underTest.Load().(bool)
+
+	var (
+		file io.Writer
+		err  error
+	)
+
+	if !underTest {
+		file, err = h.createLogFile(config.File.Path, config.File.Name)
+		if err != nil {
+			h.SetEnabled(false)
+			h.setWriter(newSyncWriter(&discarder{}))
+			return err
+		}
+	} else {
+		file = &discarder{}
 	}
 
-	h.setWriter(newSyncWriter(file))
+	if h.writer != nil {
+		fileWriter := h.writer.(*syncWriter)
+		defer fileWriter.mu.Unlock()
+
+		fileWriter.mu.Lock()
+		fileWriter.writer = file
+	} else {
+		h.setWriter(newSyncWriter(file))
+	}
 
 	h.applyJsonConfig(config.File.Json)
 	return nil

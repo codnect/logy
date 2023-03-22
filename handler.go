@@ -15,7 +15,7 @@ const (
 var (
 	handlers = map[string]Handler{
 		ConsoleHandlerName: newConsoleHandler(),
-		FileHandlerName:    newFileHandler(),
+		FileHandlerName:    newFileHandler(false),
 		SyslogHandlerName:  newSysLogHandler(),
 	}
 	handlerMu sync.RWMutex
@@ -86,6 +86,7 @@ type commonHandler struct {
 func (h *commonHandler) initializeHandler() {
 	h.SetAdditionalFields(AdditionalFields{})
 	h.SetJsonEnabled(false)
+	h.SetFormat(DefaultTextFormat)
 	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
 	h.color.Store(false)
@@ -106,47 +107,6 @@ func (h *commonHandler) resetKeys() {
 	h.stackTraceKey.Store(StackTraceKey)
 }
 
-func (h *commonHandler) SetKeyOverrides(overrides KeyOverrides) {
-	h.resetKeys()
-
-	for key, value := range overrides {
-
-		switch key {
-		case TimestampKey:
-			h.timestampKey.Store(value)
-		case MappedContextKey:
-			h.mappedContextKey.Store(value)
-		case LevelKey:
-			h.levelKey.Store(value)
-		case LoggerKey:
-			h.loggerKey.Store(value)
-		case MessageKey:
-			h.messageKey.Store(value)
-		case ErrorKey:
-			h.errorKey.Store(value)
-		case StackTraceKey:
-			h.stackTraceKey.Store(value)
-		}
-	}
-
-	if len(overrides) == 0 {
-		h.keyOverrides.Store(KeyOverrides{})
-	} else {
-		h.keyOverrides.Store(overrides)
-	}
-}
-
-func (h *commonHandler) KeyOverrides() KeyOverrides {
-	copyOfOverrides := make(KeyOverrides)
-	overrides := h.keyOverrides.Load().(KeyOverrides)
-
-	for key, value := range overrides {
-		copyOfOverrides[key] = value
-	}
-
-	return copyOfOverrides
-}
-
 func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 	if jsonConfig != nil {
 		h.SetJsonEnabled(jsonConfig.Enabled)
@@ -159,10 +119,6 @@ func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
 		h.SetExcludedKeys(ExcludedKeys{})
 		h.SetAdditionalFields(AdditionalFields{})
 	}
-}
-
-func (h *commonHandler) Writer() io.Writer {
-	return h.writer
 }
 
 func (h *commonHandler) Handle(record Record) error {
@@ -224,6 +180,10 @@ func (h *commonHandler) IsLoggable(record Record) bool {
 	return record.Level <= h.Level()
 }
 
+func (h *commonHandler) Writer() io.Writer {
+	return h.writer
+}
+
 func (h *commonHandler) SetFormat(format string) {
 	h.format.Store(format)
 }
@@ -238,6 +198,47 @@ func (h *commonHandler) SetJsonEnabled(json bool) {
 
 func (h *commonHandler) IsJsonEnabled() bool {
 	return h.json.Load().(bool)
+}
+
+func (h *commonHandler) SetKeyOverrides(overrides KeyOverrides) {
+	h.resetKeys()
+
+	for key, value := range overrides {
+
+		switch key {
+		case TimestampKey:
+			h.timestampKey.Store(value)
+		case MappedContextKey:
+			h.mappedContextKey.Store(value)
+		case LevelKey:
+			h.levelKey.Store(value)
+		case LoggerKey:
+			h.loggerKey.Store(value)
+		case MessageKey:
+			h.messageKey.Store(value)
+		case ErrorKey:
+			h.errorKey.Store(value)
+		case StackTraceKey:
+			h.stackTraceKey.Store(value)
+		}
+	}
+
+	if len(overrides) == 0 {
+		h.keyOverrides.Store(KeyOverrides{})
+	} else {
+		h.keyOverrides.Store(overrides)
+	}
+}
+
+func (h *commonHandler) KeyOverrides() KeyOverrides {
+	copyOfOverrides := make(KeyOverrides)
+	overrides := h.keyOverrides.Load().(KeyOverrides)
+
+	for key, value := range overrides {
+		copyOfOverrides[key] = value
+	}
+
+	return copyOfOverrides
 }
 
 func (h *commonHandler) SetExcludedKeys(excludedKeys ExcludedKeys) {
@@ -277,8 +278,8 @@ func (h *commonHandler) SetExcludedKeys(excludedKeys ExcludedKeys) {
 	h.excludedFields.Store(filteredKeys)
 }
 
-func (h *commonHandler) ExcludedKeys() []string {
-	excludedKeys := make([]string, 0)
+func (h *commonHandler) ExcludedKeys() ExcludedKeys {
+	excludedKeys := make(ExcludedKeys, 0)
 	enabledKeys := h.enabledKeys.Load().(int)
 
 	if enabledKeys&timestampKeyEnabled == 0 {
@@ -309,7 +310,7 @@ func (h *commonHandler) ExcludedKeys() []string {
 		excludedKeys = append(excludedKeys, StackTraceKey)
 	}
 
-	excludedKeys = append(excludedKeys, h.excludedFields.Load().([]string)...)
+	excludedKeys = append(excludedKeys, h.excludedFields.Load().(ExcludedKeys)...)
 	return excludedKeys
 }
 
