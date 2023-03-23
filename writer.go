@@ -70,6 +70,10 @@ func (sw *syslogWriter) Write(p []byte) (n int, err error) {
 		return sw.writer.Write(p)
 	}
 
+	if !sw.retry {
+		return 0, nil
+	}
+
 	err = sw.connect()
 	if err != nil {
 		return 0, err

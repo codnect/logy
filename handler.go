@@ -15,8 +15,8 @@ const (
 var (
 	handlers = map[string]Handler{
 		ConsoleHandlerName: newConsoleHandler(),
-		FileHandlerName:    newFileHandler(),
-		SyslogHandlerName:  newSysLogHandler(),
+		FileHandlerName:    newFileHandler(false),
+		SyslogHandlerName:  newSysLogHandler(false),
 	}
 	handlerMu sync.RWMutex
 )
@@ -41,6 +41,10 @@ func RegisterHandler(name string, handler Handler) {
 
 	if name == ConsoleHandlerName || name == FileHandlerName || name == SyslogHandlerName {
 		panic("logy: 'console', 'file' and 'syslog' handlers are reserved")
+	}
+
+	if handler == nil {
+		panic("logy: handler cannot be nil")
 	}
 
 	handlers[name] = handler
@@ -86,6 +90,7 @@ type commonHandler struct {
 func (h *commonHandler) initializeHandler() {
 	h.SetAdditionalFields(AdditionalFields{})
 	h.SetJsonEnabled(false)
+	h.SetFormat(DefaultTextFormat)
 	h.additionalFieldsJson.Store("")
 	h.isConsole.Store(true)
 	h.color.Store(false)
@@ -104,6 +109,99 @@ func (h *commonHandler) resetKeys() {
 	h.messageKey.Store(MessageKey)
 	h.errorKey.Store(ErrorKey)
 	h.stackTraceKey.Store(StackTraceKey)
+}
+
+func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
+	if jsonConfig != nil {
+		h.SetJsonEnabled(jsonConfig.Enabled)
+		h.SetKeyOverrides(jsonConfig.KeyOverrides)
+		h.SetExcludedKeys(jsonConfig.ExcludedKeys)
+		h.SetAdditionalFields(jsonConfig.AdditionalFields)
+	} else {
+		h.SetJsonEnabled(false)
+		h.SetKeyOverrides(KeyOverrides{})
+		h.SetExcludedKeys(ExcludedKeys{})
+		h.SetAdditionalFields(AdditionalFields{})
+	}
+}
+
+func (h *commonHandler) Handle(record Record) error {
+	buf := newBuffer()
+	defer buf.Free()
+
+	json := h.json.Load().(bool)
+	console := h.isConsole.Load().(bool)
+	color := h.color.Load().(bool)
+
+	if json {
+		encoder := getJSONEncoder(buf)
+
+		buf.WriteByte('{')
+		h.formatJson(encoder, record)
+
+		buf.WriteByte('}')
+		buf.WriteByte('\n')
+		putJSONEncoder(encoder)
+	} else {
+		encoder := getTextEncoder(buf)
+
+		format := h.format.Load().(string)
+		formatText(encoder, format, record, console && color, false)
+
+		putTextEncoder(encoder)
+	}
+
+	_, err := h.writer.Write(*buf)
+
+	return err
+}
+
+func (h *commonHandler) SetLevel(level Level) {
+	h.level.Store(level)
+}
+
+func (h *commonHandler) Level() Level {
+	return h.level.Load().(Level)
+}
+
+func (h *commonHandler) SetEnabled(enabled bool) {
+	h.enabled.Store(enabled)
+}
+
+func (h *commonHandler) IsEnabled() bool {
+	return h.enabled.Load().(bool)
+}
+
+func (h *commonHandler) IsLoggable(record Record) bool {
+	if !h.IsEnabled() {
+		return false
+	}
+
+	return record.Level <= h.Level()
+}
+
+func (h *commonHandler) setWriter(writer io.Writer) {
+	h.writer = writer
+}
+
+func (h *commonHandler) Writer() io.Writer {
+	return h.writer
+}
+
+func (h *commonHandler) SetFormat(format string) {
+	h.format.Store(format)
+}
+
+func (h *commonHandler) Format() string {
+	return h.format.Load().(string)
+}
+
+func (h *commonHandler) SetJsonEnabled(json bool) {
+	h.json.Store(json)
+}
+
+func (h *commonHandler) IsJsonEnabled() bool {
+	return h.json.Load().(bool)
 }
 
 func (h *commonHandler) SetKeyOverrides(overrides KeyOverrides) {
@@ -147,99 +245,6 @@ func (h *commonHandler) KeyOverrides() KeyOverrides {
 	return copyOfOverrides
 }
 
-func (h *commonHandler) applyJsonConfig(jsonConfig *JsonConfig) {
-	if jsonConfig != nil {
-		h.SetJsonEnabled(jsonConfig.Enabled)
-		h.SetKeyOverrides(jsonConfig.KeyOverrides)
-		h.SetExcludedKeys(jsonConfig.ExcludedKeys)
-		h.SetAdditionalFields(jsonConfig.AdditionalFields)
-	} else {
-		h.SetJsonEnabled(false)
-		h.SetKeyOverrides(KeyOverrides{})
-		h.SetExcludedKeys(ExcludedKeys{})
-		h.SetAdditionalFields(AdditionalFields{})
-	}
-}
-
-func (h *commonHandler) Writer() io.Writer {
-	return h.writer
-}
-
-func (h *commonHandler) Handle(record Record) error {
-	buf := newBuffer()
-	defer buf.Free()
-
-	json := h.json.Load().(bool)
-	console := h.isConsole.Load().(bool)
-	color := h.color.Load().(bool)
-
-	if json {
-		encoder := getJSONEncoder(buf)
-
-		buf.WriteByte('{')
-		h.formatJson(encoder, record)
-
-		buf.WriteByte('}')
-		buf.WriteByte('\n')
-		putJSONEncoder(encoder)
-	} else {
-		encoder := getTextEncoder(buf)
-
-		format := h.format.Load().(string)
-		h.formatText(encoder, format, record, console && color, false)
-
-		putTextEncoder(encoder)
-	}
-
-	_, err := h.writer.Write(*buf)
-
-	return err
-}
-
-func (h *commonHandler) setWriter(writer io.Writer) {
-	h.writer = writer
-}
-
-func (h *commonHandler) SetLevel(level Level) {
-	h.level.Store(level)
-}
-
-func (h *commonHandler) Level() Level {
-	return h.level.Load().(Level)
-}
-
-func (h *commonHandler) SetEnabled(enabled bool) {
-	h.enabled.Store(enabled)
-}
-
-func (h *commonHandler) IsEnabled() bool {
-	return h.enabled.Load().(bool)
-}
-
-func (h *commonHandler) IsLoggable(record Record) bool {
-	if !h.IsEnabled() {
-		return false
-	}
-
-	return record.Level <= h.Level()
-}
-
-func (h *commonHandler) SetFormat(format string) {
-	h.format.Store(format)
-}
-
-func (h *commonHandler) Format() string {
-	return h.format.Load().(string)
-}
-
-func (h *commonHandler) SetJsonEnabled(json bool) {
-	h.json.Store(json)
-}
-
-func (h *commonHandler) IsJsonEnabled() bool {
-	return h.json.Load().(bool)
-}
-
 func (h *commonHandler) SetExcludedKeys(excludedKeys ExcludedKeys) {
 	filteredKeys := make(ExcludedKeys, 0)
 	enabledKeysFlag := allKeysEnabled
@@ -277,8 +282,8 @@ func (h *commonHandler) SetExcludedKeys(excludedKeys ExcludedKeys) {
 	h.excludedFields.Store(filteredKeys)
 }
 
-func (h *commonHandler) ExcludedKeys() []string {
-	excludedKeys := make([]string, 0)
+func (h *commonHandler) ExcludedKeys() ExcludedKeys {
+	excludedKeys := make(ExcludedKeys, 0)
 	enabledKeys := h.enabledKeys.Load().(int)
 
 	if enabledKeys&timestampKeyEnabled == 0 {
@@ -309,7 +314,7 @@ func (h *commonHandler) ExcludedKeys() []string {
 		excludedKeys = append(excludedKeys, StackTraceKey)
 	}
 
-	excludedKeys = append(excludedKeys, h.excludedFields.Load().([]string)...)
+	excludedKeys = append(excludedKeys, h.excludedFields.Load().(ExcludedKeys)...)
 	return excludedKeys
 }
 

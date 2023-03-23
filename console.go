@@ -13,7 +13,6 @@ func newConsoleHandler() *ConsoleHandler {
 	handler.initializeHandler()
 
 	handler.setTarget(TargetStderr)
-	handler.setWriter(os.Stderr)
 
 	handler.SetEnabled(true)
 	handler.SetLevel(LevelDebug)
@@ -31,18 +30,27 @@ func (h *ConsoleHandler) IsColorEnabled() bool {
 }
 
 func (h *ConsoleHandler) setTarget(target Target) {
+	var consoleWriter *syncWriter
+	if h.writer != nil {
+		consoleWriter = h.writer.(*syncWriter)
+	} else {
+		consoleWriter = newSyncWriter(nil)
+		h.writer = consoleWriter
+	}
+
+	defer consoleWriter.mu.Unlock()
+	consoleWriter.mu.Lock()
+
 	switch target {
 	case TargetStdout:
 		h.target.Store(target)
-		h.setWriter(newSyncWriter(os.Stdout))
+		consoleWriter.writer = os.Stdout
 	case TargetStderr:
 		h.target.Store(target)
-		h.setWriter(newSyncWriter(os.Stdout))
-	case TargetDiscard:
-		h.setWriter(&discarder{})
-		h.target.Store(target)
+		consoleWriter.writer = os.Stderr
 	default:
-		h.setWriter(&discarder{})
+		h.target.Store(target)
+		consoleWriter.writer = &discarder{}
 	}
 }
 

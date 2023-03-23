@@ -59,6 +59,10 @@ func (c Caller) Package() string {
 
 	lastDot := strings.IndexByte(c.function[lastSlash:], '.') + lastSlash
 
+	if lastDot == -1 {
+		return c.function
+	}
+
 	return c.function[:lastDot]
 }
 
@@ -68,5 +72,10 @@ func (c Caller) Path() string {
 	}
 
 	lastSlash := strings.LastIndexByte(c.file, '/')
+
+	if lastSlash == -1 {
+		return c.file
+	}
+
 	return c.file[:lastSlash]
 }

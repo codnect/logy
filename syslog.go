@@ -1,6 +1,7 @@
 package logy
 
 import (
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -9,8 +10,47 @@ import (
 	"unicode/utf8"
 )
 
+type syslogDiscarder struct {
+}
+
+func (d *syslogDiscarder) Read(b []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (d *syslogDiscarder) Write(b []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (d *syslogDiscarder) Close() error {
+	return nil
+}
+
+func (d *syslogDiscarder) LocalAddr() net.Addr {
+	return nil
+}
+
+func (d *syslogDiscarder) RemoteAddr() net.Addr {
+	return nil
+}
+
+func (d *syslogDiscarder) SetDeadline(tm time.Time) error {
+	return nil
+}
+
+func (d *syslogDiscarder) SetReadDeadline(tm time.Time) error {
+	return nil
+}
+
+func (d *syslogDiscarder) SetWriteDeadline(tm time.Time) error {
+	return nil
+}
+
 type SyslogHandler struct {
-	commonHandler
+	writer  io.Writer
+	enabled atomic.Value
+	level   atomic.Value
+	format  atomic.Value
+
 	endpoint         atomic.Value
 	appName          atomic.Value
 	hostname         atomic.Value
@@ -19,26 +59,95 @@ type SyslogHandler struct {
 	protocol         atomic.Value
 	blockOnReconnect atomic.Value
 	mu               sync.RWMutex
+
+	underTest atomic.Value
 }
 
-func newSysLogHandler() *SyslogHandler {
+func newSysLogHandler(underTest bool) *SyslogHandler {
 	handler := &SyslogHandler{}
-	handler.initializeHandler()
-
-	handler.SetEnabled(false)
-	handler.SetLevel(LevelInfo)
-	handler.setWriter(&discarder{})
-
-	handler.SetApplicationName(os.Args[0])
-	handler.SetHostname("")
-	handler.SetFormat(DefaultSyslogFormat)
-	handler.setEndpoint(DefaultSyslogEndpoint)
-
-	handler.SetFacility(FacilityUserLevel)
-	handler.setLogType(RFC5424)
-	handler.setProtocol(ProtocolTCP)
-	handler.setBlockOnReconnect(false)
+	handler.initializeHandler(underTest)
 	return handler
+}
+
+func (h *SyslogHandler) initializeHandler(underTest bool) {
+	h.SetEnabled(false)
+	h.SetLevel(LevelInfo)
+	h.setWriter(newSyslogWriter(string(ProtocolTCP), DefaultSyslogEndpoint, false))
+
+	h.SetApplicationName(os.Args[0])
+	h.SetHostname("")
+	h.SetFormat(DefaultSyslogFormat)
+	h.setEndpoint(DefaultSyslogEndpoint)
+
+	h.SetFacility(FacilityUserLevel)
+	h.setLogType(RFC5424)
+	h.setProtocol(ProtocolTCP)
+	h.setBlockOnReconnect(false)
+	h.underTest.Store(underTest)
+}
+
+func (h *SyslogHandler) Handle(record Record) error {
+	facility := h.Facility()
+	priority := int(facility-1)*8 + int(record.Level.syslogLevel())
+
+	buf := newBuffer()
+	defer buf.Free()
+
+	encoder := getTextEncoder(buf)
+
+	syslogType := h.syslogType.Load().(SysLogType)
+	if syslogType == RFC3164 {
+		h.writeRFC3164Header(buf, priority, record)
+	} else if syslogType == RFC5424 {
+		h.writeRFC5424Header(buf, priority, record)
+	}
+
+	format := h.format.Load().(string)
+	formatText(encoder, format, record, false, true)
+
+	putTextEncoder(encoder)
+	_, err := h.writer.Write(*buf)
+	return err
+}
+
+func (h *SyslogHandler) SetLevel(level Level) {
+	h.level.Store(level)
+}
+
+func (h *SyslogHandler) Level() Level {
+	return h.level.Load().(Level)
+}
+
+func (h *SyslogHandler) SetEnabled(enabled bool) {
+	h.enabled.Store(enabled)
+}
+
+func (h *SyslogHandler) IsEnabled() bool {
+	return h.enabled.Load().(bool)
+}
+
+func (h *SyslogHandler) IsLoggable(record Record) bool {
+	if !h.IsEnabled() {
+		return false
+	}
+
+	return record.Level <= h.Level()
+}
+
+func (h *SyslogHandler) setWriter(writer io.Writer) {
+	h.writer = writer
+}
+
+func (h *SyslogHandler) Writer() io.Writer {
+	return h.writer
+}
+
+func (h *SyslogHandler) SetFormat(format string) {
+	h.format.Store(format)
+}
+
+func (h *SyslogHandler) Format() string {
+	return h.format.Load().(string)
 }
 
 func (h *SyslogHandler) setEndpoint(endpoint string) {
@@ -113,47 +222,24 @@ func (h *SyslogHandler) OnConfigure(config Config) error {
 	network := h.Protocol()
 	address := h.Endpoint()
 
-	sWriter := newSyslogWriter(string(network), address, !h.IsBlockOnReconnect())
-	h.setWriter(sWriter)
-	return sWriter.connect()
-}
+	underTest := h.underTest.Load().(bool)
 
-func (h *SyslogHandler) reconnect() {
-	network := h.Protocol()
-	address := h.Endpoint()
+	sysWriter := h.writer.(*syslogWriter)
 
-	con, err := net.Dial(string(network), address)
-	if err != nil {
-		h.SetEnabled(false)
-		h.setWriter(&discarder{})
-		return
+	defer sysWriter.mu.Unlock()
+	sysWriter.mu.Lock()
+
+	if !underTest {
+		sysWriter.network = string(network)
+		sysWriter.address = address
+		sysWriter.retry = !h.IsBlockOnReconnect()
+
+		return sysWriter.connect()
+	} else {
+		sysWriter.writer = &syslogDiscarder{}
 	}
 
-	h.setWriter(con)
-}
-
-func (h *SyslogHandler) Handle(record Record) error {
-	facility := h.Facility()
-	priority := int(facility-1)*8 + int(record.Level.syslogLevel())
-
-	buf := newBuffer()
-	defer buf.Free()
-
-	encoder := getTextEncoder(buf)
-
-	syslogType := h.syslogType.Load().(SysLogType)
-	if syslogType == RFC3164 {
-		h.writeRFC3164Header(buf, priority, record)
-	} else if syslogType == RFC5424 {
-		h.writeRFC5424Header(buf, priority, record)
-	}
-
-	format := h.format.Load().(string)
-	h.formatText(encoder, format, record, false, true)
-
-	putTextEncoder(encoder)
-	_, err := h.writer.Write(*buf)
-	return err
+	return nil
 }
 
 func (h *SyslogHandler) writeRFC5424Header(buf *buffer, priority int, record Record) {

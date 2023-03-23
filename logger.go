@@ -411,28 +411,13 @@ func (l *Logger) includeCaller(depth int, record *Record) {
 
 func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
 	var (
-		buf           []byte
-		errorTypeName = "Error"
+		buf []byte
 	)
-
-	typ := reflect.TypeOf(err)
-	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
-	}
-
-	if typ.Name() != "errorString" {
-		errorTypeName = typ.String()
-	}
 
 	stack := captureStacktrace(depth+1, stackTraceFull)
 	defer stack.free()
 
 	frame, more := stack.next()
-
-	buf = append(buf, errorTypeName...)
-	buf = append(buf, ": "...)
-	buf = append(buf, err.Error()...)
-	buf = append(buf, "\\n"...)
 
 	formatFrame(&buf, 0, frame)
 
