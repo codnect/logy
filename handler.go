@@ -16,7 +16,7 @@ var (
 	handlers = map[string]Handler{
 		ConsoleHandlerName: newConsoleHandler(),
 		FileHandlerName:    newFileHandler(false),
-		SyslogHandlerName:  newSysLogHandler(),
+		SyslogHandlerName:  newSysLogHandler(false),
 	}
 	handlerMu sync.RWMutex
 )
@@ -41,6 +41,10 @@ func RegisterHandler(name string, handler Handler) {
 
 	if name == ConsoleHandlerName || name == FileHandlerName || name == SyslogHandlerName {
 		panic("logy: 'console', 'file' and 'syslog' handlers are reserved")
+	}
+
+	if handler == nil {
+		panic("logy: handler cannot be nil")
 	}
 
 	handlers[name] = handler
@@ -142,7 +146,7 @@ func (h *commonHandler) Handle(record Record) error {
 		encoder := getTextEncoder(buf)
 
 		format := h.format.Load().(string)
-		h.formatText(encoder, format, record, console && color, false)
+		formatText(encoder, format, record, console && color, false)
 
 		putTextEncoder(encoder)
 	}
@@ -150,10 +154,6 @@ func (h *commonHandler) Handle(record Record) error {
 	_, err := h.writer.Write(*buf)
 
 	return err
-}
-
-func (h *commonHandler) setWriter(writer io.Writer) {
-	h.writer = writer
 }
 
 func (h *commonHandler) SetLevel(level Level) {
@@ -178,6 +178,10 @@ func (h *commonHandler) IsLoggable(record Record) bool {
 	}
 
 	return record.Level <= h.Level()
+}
+
+func (h *commonHandler) setWriter(writer io.Writer) {
+	h.writer = writer
 }
 
 func (h *commonHandler) Writer() io.Writer {

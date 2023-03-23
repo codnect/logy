@@ -4,16 +4,18 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
 const (
-	loggerTargetLen = 40
+	loggerTargetLen      = 40
+	defaultErrorTypeName = "Error"
 )
 
 const (
 	TimestampKey     = "timestamp"
-	MappedContextKey = "mappedContext"
+	MappedContextKey = "mapped_context"
 	LevelKey         = "level"
 	LoggerKey        = "logger"
 	MessageKey       = "message"
@@ -37,37 +39,23 @@ var (
 	processName = filepath.Base(os.Args[0])
 )
 
-func (h *commonHandler) formatContextValues(encoder *textEncoder, ctx context.Context, withKeys bool) {
+func formatContextValues(encoder *textEncoder, ctx context.Context, withKeys bool) {
 	contextFields := ContextFieldsFrom(ctx)
-	excludedFields := h.excludedFields.Load().([]string)
 
 	if contextFields != nil {
 		fieldLen := len(contextFields.fields)
 
 		for i, field := range contextFields.fields {
-			isExcluded := false
-
-			for _, excluded := range excludedFields {
-				if excluded == field.key {
-					isExcluded = true
-					break
-				}
-			}
-
-			if isExcluded {
-				continue
-			}
-
-			if i != fieldLen-1 {
-				encoder.buf.WriteString(", ")
-			}
-
 			if withKeys {
 				encoder.buf.WriteString(field.Key())
 				encoder.buf.WriteByte('=')
 			}
 
 			encoder.buf.WriteString(field.ValueAsText())
+
+			if i != fieldLen-1 {
+				encoder.buf.WriteString(", ")
+			}
 		}
 	}
 }
@@ -109,7 +97,7 @@ func (h *commonHandler) formatContextValuesAsJson(encoder *jsonEncoder, ctx cont
 	encoder.buf.WriteString("}")
 }
 
-func (h *commonHandler) formatText(encoder *textEncoder, format string, record Record, color bool, noPadding bool) {
+func formatText(encoder *textEncoder, format string, record Record, color bool, noPadding bool) {
 	contextFields := ContextFieldsFrom(record.Context)
 
 	i := 0
@@ -143,7 +131,7 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 							encoder.buf.WriteString(field.ValueAsText())
 						}
 					} else {
-						h.formatContextValues(encoder, record.Context, false)
+						formatContextValues(encoder, record.Context, false)
 					}
 				}
 
@@ -160,7 +148,7 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 							encoder.buf.WriteString(field.ValueAsText())
 						}
 					} else {
-						h.formatContextValues(encoder, record.Context, true)
+						formatContextValues(encoder, record.Context, true)
 					}
 				}
 
@@ -168,8 +156,14 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			case 'm': // full message
 				encoder.AppendString(record.Message)
 
+				if record.Error != nil {
+					appendError(encoder.buf, record.Error)
+				}
+
 				if record.StackTrace != "" {
-					encoder.buf.WriteByte('\n')
+					if record.Error != nil {
+						encoder.buf.WriteByte('\n')
+					}
 					encoder.buf.WriteString(strings.ReplaceAll(record.StackTrace, "\\n", "\n"))
 				}
 			case 's': // simple message
@@ -184,9 +178,15 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 				encoder.AppendString(record.Caller.Package())
 			case 'l': // location
 				encoder.AppendString(record.Caller.Path())
-			case 'e': // stack trace if exist
+			case 'e': // error and stack trace if exist
+				if record.Error != nil {
+					appendError(encoder.buf, record.Error)
+				}
+
 				if record.StackTrace != "" {
-					encoder.buf.WriteByte('\n')
+					if record.Error != nil {
+						encoder.buf.WriteByte('\n')
+					}
 					encoder.buf.WriteString(strings.ReplaceAll(record.StackTrace, "\\n", "\n"))
 				}
 			case 'i': // process id
@@ -195,6 +195,8 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 				encoder.AppendString(processName)
 			case 'n': // newline
 				encoder.buf.WriteByte('\n')
+			case '%':
+				encoder.buf.WriteByte('%')
 			default:
 				encoder.buf.WriteString(format[i:j])
 			}
@@ -206,6 +208,26 @@ func (h *commonHandler) formatText(encoder *textEncoder, format string, record R
 			i = j + 1
 		}
 	}
+}
+
+func appendError(buf *buffer, err error) {
+	var (
+		errorTypeName = defaultErrorTypeName
+	)
+
+	typ := reflect.TypeOf(err)
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+
+	if typ.Name() != "errorString" {
+		errorTypeName = typ.String()
+	}
+
+	buf.WriteByte('\n')
+	buf.WriteString(errorTypeName)
+	buf.WriteString(": ")
+	buf.WriteString(err.Error())
 }
 
 func appendLoggerAsText(buf *buffer, logger string, color bool, noPadding bool) {

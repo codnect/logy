@@ -65,23 +65,19 @@ func (h *FileHandler) OnConfigure(config Config) error {
 		file, err = h.createLogFile(config.File.Path, config.File.Name)
 		if err != nil {
 			h.SetEnabled(false)
-			h.setWriter(newSyncWriter(&discarder{}))
-			return err
+			file = &discarder{}
 		}
 	} else {
 		file = &discarder{}
 	}
 
-	if h.writer != nil {
-		fileWriter := h.writer.(*syncWriter)
-		defer fileWriter.mu.Unlock()
+	fileWriter := h.writer.(*syncWriter)
 
-		fileWriter.mu.Lock()
-		fileWriter.writer = file
-	} else {
-		h.setWriter(newSyncWriter(file))
-	}
+	defer fileWriter.mu.Unlock()
+	fileWriter.mu.Lock()
+
+	fileWriter.writer = file
 
 	h.applyJsonConfig(config.File.Json)
-	return nil
+	return err
 }
