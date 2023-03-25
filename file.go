@@ -20,7 +20,7 @@ func newFileHandler(underTest bool) *FileHandler {
 
 	handler.SetEnabled(false)
 	handler.SetLevel(LevelInfo)
-	handler.setWriter(newSyncWriter(&discarder{}))
+	handler.setWriter(newSyncWriter(nil, true))
 	handler.underTest.Store(underTest)
 	return handler
 }
@@ -61,22 +61,24 @@ func (h *FileHandler) OnConfigure(config Config) error {
 		err  error
 	)
 
+	discarded := false
+
 	if !underTest {
 		file, err = h.createLogFile(config.File.Path, config.File.Name)
 		if err != nil {
 			h.SetEnabled(false)
-			file = &discarder{}
+			discarded = true
 		}
 	} else {
-		file = &discarder{}
+		discarded = true
 	}
 
 	fileWriter := h.writer.(*syncWriter)
 
 	defer fileWriter.mu.Unlock()
 	fileWriter.mu.Lock()
-
 	fileWriter.writer = file
+	fileWriter.setDiscarded(discarded)
 
 	h.applyJsonConfig(config.File.Json)
 	return err

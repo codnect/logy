@@ -190,7 +190,7 @@ func formatText(encoder *textEncoder, format string, record Record, color bool, 
 					encoder.buf.WriteString(strings.ReplaceAll(record.StackTrace, "\\n", "\n"))
 				}
 			case 'i': // process id
-				encoder.buf.WritePosIntWidth(processId, 4)
+				encoder.buf.WriteIntWidth(processId, 4)
 			case 'N': // process name
 				encoder.AppendString(processName)
 			case 'n': // newline

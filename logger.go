@@ -22,6 +22,9 @@ var (
 
 	cache         = map[string]*Logger{}
 	loggerCacheMu sync.RWMutex
+	now           = func() time.Time {
+		return time.Now()
+	}
 )
 
 func init() {
@@ -378,7 +381,7 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 
 func (l *Logger) makeRecord(ctx context.Context, level Level, msg string) Record {
 	record := Record{
-		Time:       time.Now(),
+		Time:       now(),
 		Message:    msg,
 		Level:      level,
 		Context:    ctx,

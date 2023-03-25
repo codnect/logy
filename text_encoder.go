@@ -434,24 +434,24 @@ func (enc *textEncoder) AppendError(val error) {
 
 func (enc *textEncoder) AppendTime(t time.Time) {
 	year, month, day := t.Date()
-	enc.buf.WritePosIntWidth(year, 2)
+	enc.buf.WriteIntWidth(year, 2)
 	enc.buf.WriteByte('-')
 
-	enc.buf.WritePosIntWidth(int(month), 2)
+	enc.buf.WriteIntWidth(int(month), 2)
 	enc.buf.WriteByte('-')
 
-	enc.buf.WritePosIntWidth(day, 2)
+	enc.buf.WriteIntWidth(day, 2)
 	enc.buf.WriteByte(' ')
 
 	hour, min, sec := t.Clock()
-	enc.buf.WritePosIntWidth(hour, 2)
+	enc.buf.WriteIntWidth(hour, 2)
 	enc.buf.WriteByte(':')
-	enc.buf.WritePosIntWidth(min, 2)
+	enc.buf.WriteIntWidth(min, 2)
 	enc.buf.WriteByte(':')
-	enc.buf.WritePosIntWidth(sec, 2)
+	enc.buf.WriteIntWidth(sec, 2)
 
 	enc.buf.WriteByte('.')
-	enc.buf.WritePosIntWidth(t.Nanosecond()/1e3, 6)
+	enc.buf.WriteIntWidth(t.Nanosecond()/1e3, 6)
 }
 
 func (enc *textEncoder) AppendTimeLayout(t time.Time, layout string) {

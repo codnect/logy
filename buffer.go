@@ -54,33 +54,7 @@ func (b *buffer) WriteTimeLayout(t time.Time, layout string) {
 	*b = t.AppendFormat(*b, layout)
 }
 
-func (b *buffer) WriteTimeAsString(t time.Time) {
-	year, month, day := t.Date()
-	b.WritePosIntWidth(year, 2)
-	b.WriteByte('-')
-
-	b.WritePosIntWidth(int(month), 2)
-	b.WriteByte('-')
-
-	b.WritePosIntWidth(day, 2)
-	b.WriteByte('T')
-
-	hour, min, sec := t.Clock()
-	b.WritePosIntWidth(hour, 2)
-	b.WriteByte(':')
-	b.WritePosIntWidth(min, 2)
-	b.WriteByte(':')
-	b.WritePosIntWidth(sec, 2)
-
-	b.WriteByte('.')
-	b.WritePosIntWidth(t.Nanosecond()/1e3, 6)
-}
-
-func (b *buffer) WritePosInt(i int) {
-	b.WritePosIntWidth(i, 0)
-}
-
-func (b *buffer) WritePosIntWidth(i, width int) {
+func (b *buffer) WriteIntWidth(i, width int) {
 	if i < 0 {
 		panic("negative int")
 	}
