@@ -2,48 +2,12 @@ package logy
 
 import (
 	"io"
-	"net"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
 )
-
-type syslogDiscarder struct {
-}
-
-func (d *syslogDiscarder) Read(b []byte) (n int, err error) {
-	return 0, nil
-}
-
-func (d *syslogDiscarder) Write(b []byte) (n int, err error) {
-	return 0, nil
-}
-
-func (d *syslogDiscarder) Close() error {
-	return nil
-}
-
-func (d *syslogDiscarder) LocalAddr() net.Addr {
-	return nil
-}
-
-func (d *syslogDiscarder) RemoteAddr() net.Addr {
-	return nil
-}
-
-func (d *syslogDiscarder) SetDeadline(tm time.Time) error {
-	return nil
-}
-
-func (d *syslogDiscarder) SetReadDeadline(tm time.Time) error {
-	return nil
-}
-
-func (d *syslogDiscarder) SetWriteDeadline(tm time.Time) error {
-	return nil
-}
 
 type SyslogHandler struct {
 	writer  io.Writer
@@ -72,7 +36,7 @@ func newSysLogHandler(underTest bool) *SyslogHandler {
 func (h *SyslogHandler) initializeHandler(underTest bool) {
 	h.SetEnabled(false)
 	h.SetLevel(LevelInfo)
-	h.setWriter(newSyslogWriter(string(ProtocolTCP), DefaultSyslogEndpoint, false))
+	h.setWriter(newSyslogWriter(string(ProtocolTCP), DefaultSyslogEndpoint, false, true))
 
 	h.SetApplicationName(os.Args[0])
 	h.SetHostname("")
@@ -233,10 +197,11 @@ func (h *SyslogHandler) OnConfigure(config Config) error {
 		sysWriter.network = string(network)
 		sysWriter.address = address
 		sysWriter.retry = !h.IsBlockOnReconnect()
+		sysWriter.setDiscarded(false)
 
 		return sysWriter.connect()
 	} else {
-		sysWriter.writer = &syslogDiscarder{}
+		sysWriter.setDiscarded(true)
 	}
 
 	return nil

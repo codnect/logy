@@ -1,6 +1,7 @@
 package logy
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -325,6 +326,11 @@ func (enc *jsonEncoder) AppendAny(val any) error {
 				enc.appendMap(&rValue)
 			} else if rValue.Kind() == reflect.Array || rValue.Kind() == reflect.Slice {
 				enc.appendSlice(&rValue)
+			} else {
+				err := enc.appendJsonValue(typed)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -333,15 +339,32 @@ func (enc *jsonEncoder) AppendAny(val any) error {
 }
 
 func (enc *jsonEncoder) AppendObject(obj ObjectMarshaler) error {
+	var (
+		err error
+	)
+
 	old := enc.openNamespaces
 	enc.openNamespaces = 0
 	enc.addElementSeparator()
 	enc.buf.WriteByte('{')
-	err := obj.MarshalObject(enc)
+	if obj != nil {
+		err = obj.MarshalObject(enc)
+	}
 	enc.buf.WriteByte('}')
 	enc.CloseOpenNamespaces()
 	enc.openNamespaces = old
 	return err
+}
+
+func (enc *jsonEncoder) appendJsonValue(val any) error {
+	enc.addElementSeparator()
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+
+	enc.buf.Write(data)
+	return nil
 }
 
 func (enc *jsonEncoder) appendMap(rValue *reflect.Value) {
@@ -639,9 +662,15 @@ func (enc *jsonEncoder) AppendDurations(arr []time.Duration) {
 }
 
 func (enc *jsonEncoder) AppendArray(arr ArrayMarshaler) error {
+	var (
+		err error
+	)
+
 	enc.addElementSeparator()
 	enc.buf.WriteByte('[')
-	err := arr.MarshalArray(enc)
+	if arr != nil {
+		err = arr.MarshalArray(enc)
+	}
 	enc.buf.WriteByte(']')
 	return err
 }
@@ -711,6 +740,7 @@ func (enc *jsonEncoder) AppendFloat64(v float64) { enc.appendFloat(v, 64) }
 func (enc *jsonEncoder) AppendFloat32(v float32) { enc.appendFloat(float64(v), 32) }
 
 func (enc *jsonEncoder) AppendError(val error) {
+	enc.addElementSeparator()
 	enc.buf.WriteByte('"')
 	enc.buf.WriteString(val.Error())
 	enc.buf.WriteByte('"')

@@ -5,33 +5,44 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 )
 
-type discarder struct {
-}
-
-func (d *discarder) Write(p []byte) (n int, err error) {
-	return io.Discard.Write(p)
-}
-
 type syncWriter struct {
-	mu     sync.Mutex
-	writer io.Writer
+	discard atomic.Value
+	mu      sync.Mutex
+	writer  io.Writer
 }
 
-func newSyncWriter(writer io.Writer) *syncWriter {
-	return &syncWriter{
+func newSyncWriter(writer io.Writer, discard bool) *syncWriter {
+	syncW := &syncWriter{
 		writer: writer,
 	}
+
+	syncW.discard.Store(discard)
+	return syncW
+}
+
+func (sw *syncWriter) setDiscarded(discarded bool) {
+	sw.discard.Store(discarded)
+}
+
+func (sw *syncWriter) isDiscarded() bool {
+	return sw.discard.Load().(bool)
 }
 
 func (sw *syncWriter) Write(p []byte) (n int, err error) {
+	if sw.isDiscarded() {
+		return 0, nil
+	}
+
 	defer sw.mu.Unlock()
 	sw.mu.Lock()
 	return sw.writer.Write(p)
 }
 
 type syslogWriter struct {
+	discard atomic.Value
 	mu      sync.Mutex
 	writer  net.Conn
 	network string
@@ -39,12 +50,22 @@ type syslogWriter struct {
 	retry   bool
 }
 
-func newSyslogWriter(network, address string, retry bool) *syslogWriter {
-	return &syslogWriter{
+func newSyslogWriter(network, address string, retry bool, discarded bool) *syslogWriter {
+	syslogWriter := &syslogWriter{
 		network: network,
 		address: address,
 		retry:   retry,
 	}
+	syslogWriter.discard.Store(discarded)
+	return syslogWriter
+}
+
+func (sw *syslogWriter) setDiscarded(discarded bool) {
+	sw.discard.Store(discarded)
+}
+
+func (sw *syslogWriter) isDiscarded() bool {
+	return sw.discard.Load().(bool)
 }
 
 func (sw *syslogWriter) connect() error {
@@ -63,6 +84,10 @@ func (sw *syslogWriter) connect() error {
 }
 
 func (sw *syslogWriter) Write(p []byte) (n int, err error) {
+	if sw.isDiscarded() {
+		return 0, nil
+	}
+
 	defer sw.mu.Unlock()
 	sw.mu.Lock()
 

@@ -36,7 +36,7 @@ func TestConsoleHandler_Target(t *testing.T) {
 
 	handler.setTarget(TargetDiscard)
 	assert.Equal(t, TargetDiscard, handler.Target())
-	assert.IsType(t, &discarder{}, handler.writer.(*syncWriter).writer)
+	assert.IsType(t, &os.File{}, handler.writer.(*syncWriter).writer)
 }
 
 func TestConsoleHandler_OnConfigure(t *testing.T) {

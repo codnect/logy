@@ -34,7 +34,7 @@ func (h *ConsoleHandler) setTarget(target Target) {
 	if h.writer != nil {
 		consoleWriter = h.writer.(*syncWriter)
 	} else {
-		consoleWriter = newSyncWriter(nil)
+		consoleWriter = newSyncWriter(nil, true)
 		h.writer = consoleWriter
 	}
 
@@ -45,12 +45,14 @@ func (h *ConsoleHandler) setTarget(target Target) {
 	case TargetStdout:
 		h.target.Store(target)
 		consoleWriter.writer = os.Stdout
+		consoleWriter.setDiscarded(false)
 	case TargetStderr:
 		h.target.Store(target)
 		consoleWriter.writer = os.Stderr
+		consoleWriter.setDiscarded(false)
 	default:
 		h.target.Store(target)
-		consoleWriter.writer = &discarder{}
+		consoleWriter.setDiscarded(true)
 	}
 }
 

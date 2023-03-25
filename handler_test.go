@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -90,14 +91,14 @@ func TestCommonHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
 			},
 			format: "%d{2006-01-02 15:04:05.000000} %% %p %M %L %F %C %l %i %N %c : %s%e%n",
 			json:   false,
-			expected: fmt.Sprintf("%s %% TRACE TestFunction 41 main.go TestFunction main.go %d %s %-40s : anyMessage\nError: anyError\nanyStackTrace\n",
+			expected: fmt.Sprintf("%s %% TRACE TestFunction 41 main.go TestFunction /test/any %d %s %-40s : anyMessage\nError: anyError\nanyStackTrace\n",
 				timestamp.Format("2006-01-02 15:04:05.000000"),
 				processId,
 				processName,
@@ -322,7 +323,7 @@ func TestCommonHandler_IsLoggable(t *testing.T) {
 }
 
 func TestCommonHandler_Writer(t *testing.T) {
-	testWriter := newSyncWriter(&discarder{})
+	testWriter := newSyncWriter(nil, true)
 	handler := newConsoleHandler()
 	handler.setWriter(testWriter)
 	assert.Equal(t, testWriter, handler.Writer())

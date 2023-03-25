@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -38,14 +39,14 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
 			},
 			format: "%d %% %p %M %L %F %C %l %i %N %c : %s%e%n",
 			expectedInRFC5424: fmt.Sprintf("<13>1 %s - %s "+
-				"%d anyLoggerName - \ufeff%s %% TRACE TestFunction 41 main.go TestFunction main.go %d %s %s : anyMessage\nError: anyError\nanyStackTrace\n",
+				"%d anyLoggerName - \ufeff%s %% TRACE TestFunction 41 main.go TestFunction /test/any %d %s %s : anyMessage\nError: anyError\nanyStackTrace\n",
 				timestamp.Format(time.RFC3339),
 				os.Args[0],
 				processId,
@@ -53,7 +54,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				processId,
 				processName,
 				"anyLoggerName"),
-			expectedInRFC3164: fmt.Sprintf("<13>%s UNKNOWN_HOSTNAME [%d]: %s %% TRACE TestFunction 41 main.go TestFunction main.go %d %s %s : anyMessage\nError: anyError\nanyStackTrace\n",
+			expectedInRFC3164: fmt.Sprintf("<13>%s UNKNOWN_HOSTNAME [%d]: %s %% TRACE TestFunction 41 main.go TestFunction /test/any %d %s %s : anyMessage\nError: anyError\nanyStackTrace\n",
 				timestamp.Format(time.Stamp),
 				processId,
 				timestamp.Format("2006-01-02 15:04:05.000000"),
@@ -72,7 +73,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -102,7 +103,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -132,7 +133,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -162,7 +163,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -192,7 +193,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -222,7 +223,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -252,7 +253,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
@@ -282,7 +283,7 @@ func TestSyslogHandler_Handle(t *testing.T) {
 				Error:      errors.New("anyError"),
 				Caller: Caller{
 					defined:  true,
-					file:     "main.go",
+					file:     filepath.FromSlash("/test/any/main.go"),
 					line:     41,
 					function: "TestFunction",
 				},
