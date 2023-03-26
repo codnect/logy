@@ -23,7 +23,8 @@ const (
 )
 
 var (
-	config = &Config{
+	configReader fileReader = newConfigFileReader()
+	config                  = &Config{
 		Level:         LevelTrace,
 		IncludeCaller: false,
 		Handlers:      []string{ConsoleHandlerName},
@@ -102,7 +103,7 @@ func (t *Target) MarshalJSON() ([]byte, error) {
 	return []byte(builder.String()), nil
 }
 
-func (t *Target) MarshalYAML() (interface{}, error) {
+func (t Target) MarshalYAML() (interface{}, error) {
 	return t.String(), nil
 }
 
@@ -150,7 +151,7 @@ func (p *Protocol) MarshalJSON() ([]byte, error) {
 	return []byte(builder.String()), nil
 }
 
-func (p *Protocol) MarshalYAML() (interface{}, error) {
+func (p Protocol) MarshalYAML() (interface{}, error) {
 	return p.String(), nil
 }
 
@@ -214,7 +215,7 @@ func (t *SysLogType) MarshalJSON() ([]byte, error) {
 	return []byte(builder.String()), nil
 }
 
-func (t *SysLogType) MarshalYAML() (interface{}, error) {
+func (t SysLogType) MarshalYAML() (interface{}, error) {
 	return t.String(), nil
 }
 
@@ -300,6 +301,28 @@ var (
 	}
 )
 
+func (f *Facility) String() string {
+	for str, val := range facilityValues {
+		if val == *f {
+			return str
+		}
+	}
+
+	return ""
+}
+
+func (f *Facility) MarshalJSON() ([]byte, error) {
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(f.String())
+	builder.WriteByte('"')
+	return []byte(builder.String()), nil
+}
+
+func (f Facility) MarshalYAML() (interface{}, error) {
+	return f.String(), nil
+}
+
 func (f *Facility) UnmarshalJSON(data []byte) error {
 	var facility string
 	if err := json.Unmarshal(data, &facility); err != nil {
@@ -377,7 +400,58 @@ func (h *Handlers) UnmarshalYAML(node *yaml.Node) error {
 }
 
 type KeyOverrides map[string]string
+
 type ExcludedKeys []string
+
+func (k *ExcludedKeys) UnmarshalJSON(data []byte) error {
+	var (
+		val     any
+		isArray bool
+	)
+
+	if data[0] == '[' || data[len(data)-1] == ']' {
+		val = make([]string, 0)
+		isArray = true
+	} else {
+		val = ""
+	}
+
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+
+	if isArray {
+		*k = ExcludedKeys{}
+		for _, item := range val.([]any) {
+			*k = append(*k, strings.TrimSpace(item.(string)))
+		}
+		return nil
+	}
+
+	items := strings.Split(val.(string), ",")
+	if len(items) == 0 {
+		return nil
+	}
+
+	*k = ExcludedKeys{}
+	for _, item := range items {
+		*k = append(*k, strings.TrimSpace(item))
+	}
+
+	return nil
+}
+
+func (k *ExcludedKeys) UnmarshalYAML(node *yaml.Node) error {
+	if len(node.Content) != 0 {
+		*k = ExcludedKeys{}
+		for _, item := range node.Content {
+			*k = append(*k, strings.TrimSpace(item.Value))
+		}
+	}
+
+	return nil
+}
+
 type AdditionalFields map[string]any
 
 type JsonConfig struct {
@@ -498,14 +572,14 @@ func loadConfigFromEnv() {
 }
 
 func LoadConfigFromYaml(name string) error {
-	yamlFile, err := os.ReadFile(name)
+	file, err := configReader.ReadFile(name)
 	if err != nil {
 		return err
 	}
 
 	data := make(map[string]interface{})
 
-	err = yaml.Unmarshal(yamlFile, &data)
+	err = yaml.Unmarshal(file, &data)
 	if err != nil {
 		return err
 	}

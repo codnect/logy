@@ -35,6 +35,10 @@ func SupportsColor() bool {
 	return supportColor
 }
 
+func (c logColor) value() int {
+	return int(c)
+}
+
 func (c logColor) String() string {
 	return strconv.FormatInt(int64(c), 10)
 }

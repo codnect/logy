@@ -85,7 +85,7 @@ func (l *Level) MarshalJSON() ([]byte, error) {
 	return []byte(builder.String()), nil
 }
 
-func (l *Level) MarshalYAML() (interface{}, error) {
+func (l Level) MarshalYAML() (interface{}, error) {
 	return l.String(), nil
 }
 
