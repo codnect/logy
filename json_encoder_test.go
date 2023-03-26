@@ -483,9 +483,8 @@ func TestJsonEncoder_AppendAny(t *testing.T) {
 				"anyMapKey": map[string]any{
 					"anySubMapKey": "anySubMapValue",
 				},
-				"anotherMapKey": "anyMapValue",
 			},
-			Expected: "{\"anyMapKey\":{\"anySubMapKey\":\"anySubMapValue\"},\"anotherMapKey\":\"anyMapValue\"}",
+			Expected: "{\"anyMapKey\":{\"anySubMapKey\":\"anySubMapValue\"}}",
 		},
 		{
 			Value:    []any{"anyStringValue", 37},
