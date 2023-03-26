@@ -1,8 +1,14 @@
 package logy
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"runtime"
 	"testing"
+)
+
+var (
+	_, stackTraceFilename, _, _ = runtime.Caller(0)
 )
 
 func TestCaptureFirstStacktrace(t *testing.T) {
@@ -20,7 +26,7 @@ func TestCaptureFirstStacktrace(t *testing.T) {
 		formatFrame(&buf, i, frame)
 	}
 
-	assert.Equal(t, "github.com/procyon-projects/logy.TestCaptureFirstStacktrace()\\n    /Users/burakkoken/GolandProjects/slog/stack_trace_test.go:13", string(buf))
+	assert.Equal(t, fmt.Sprintf("github.com/procyon-projects/logy.TestCaptureFirstStacktrace()\\n    %s:19", stackTraceFilename), string(buf))
 }
 
 func TestCaptureFullStacktrace(t *testing.T) {
@@ -38,5 +44,5 @@ func TestCaptureFullStacktrace(t *testing.T) {
 		formatFrame(&buf, i, frame)
 	}
 
-	assert.Equal(t, "github.com/procyon-projects/logy.TestCaptureFullStacktrace()\\n    /Users/burakkoken/GolandProjects/slog/stack_trace_test.go:31", string(buf))
+	assert.Equal(t, fmt.Sprintf("github.com/procyon-projects/logy.TestCaptureFullStacktrace()\\n    %s:37", stackTraceFilename), string(buf))
 }

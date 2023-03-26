@@ -880,7 +880,7 @@ func TestLogger_WarnWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_WarnWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:875",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_WarnWithStackTrace()\\n    %s:875", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
