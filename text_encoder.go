@@ -101,6 +101,10 @@ func (enc *textEncoder) AppendAny(val any) error {
 		enc.AppendTimes(typed)
 	case []time.Duration:
 		enc.AppendDurations(typed)
+	case []complex64:
+		enc.AppendComplex64s(typed)
+	case []complex128:
+		enc.AppendComplex128s(typed)
 	default:
 		if marshaler, ok := typed.(ObjectMarshaler); ok {
 			return enc.AppendObject(marshaler)
@@ -117,7 +121,11 @@ func (enc *textEncoder) AppendAny(val any) error {
 			} else if rValue.Kind() == reflect.Array || rValue.Kind() == reflect.Slice {
 				enc.appendSlice(&rValue)
 			} else {
-				enc.AppendString(rValue.String())
+				err := enc.appendJsonValue(typed)
+
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -374,9 +382,31 @@ func (enc *textEncoder) AppendDurations(arr []time.Duration) {
 	enc.buf.WriteByte(']')
 }
 
+func (enc *textEncoder) AppendComplex64s(arr []complex64) {
+	enc.buf.WriteByte('[')
+	for i, item := range arr {
+		enc.AppendComplex64(item)
+		if i != len(arr)-1 {
+			enc.buf.WriteByte(',')
+		}
+	}
+	enc.buf.WriteByte(']')
+}
+
+func (enc *textEncoder) AppendComplex128s(arr []complex128) {
+	enc.buf.WriteByte('[')
+	for i, item := range arr {
+		enc.AppendComplex128(item)
+		if i != len(arr)-1 {
+			enc.buf.WriteByte(',')
+		}
+	}
+	enc.buf.WriteByte(']')
+}
+
 func (enc *textEncoder) AppendArray(arr ArrayMarshaler) error {
 	enc.buf.WriteByte('[')
-	err := arr.MarshalArray(enc)
+	err := arr.MarshalArray(enc.jsonEncoder)
 	enc.buf.WriteByte(']')
 	return err
 }
@@ -433,25 +463,7 @@ func (enc *textEncoder) AppendError(val error) {
 }
 
 func (enc *textEncoder) AppendTime(t time.Time) {
-	year, month, day := t.Date()
-	enc.buf.WriteIntWidth(year, 2)
-	enc.buf.WriteByte('-')
-
-	enc.buf.WriteIntWidth(int(month), 2)
-	enc.buf.WriteByte('-')
-
-	enc.buf.WriteIntWidth(day, 2)
-	enc.buf.WriteByte(' ')
-
-	hour, min, sec := t.Clock()
-	enc.buf.WriteIntWidth(hour, 2)
-	enc.buf.WriteByte(':')
-	enc.buf.WriteIntWidth(min, 2)
-	enc.buf.WriteByte(':')
-	enc.buf.WriteIntWidth(sec, 2)
-
-	enc.buf.WriteByte('.')
-	enc.buf.WriteIntWidth(t.Nanosecond()/1e3, 6)
+	*enc.buf = t.AppendFormat(*enc.buf, time.RFC3339)
 }
 
 func (enc *textEncoder) AppendTimeLayout(t time.Time, layout string) {
@@ -465,14 +477,12 @@ func (enc *textEncoder) AppendDuration(val time.Duration) {
 func (enc *textEncoder) appendComplex(val complex128, precision int) {
 
 	r, i := float64(real(val)), float64(imag(val))
-	enc.buf.WriteByte('"')
 	enc.buf.WriteFloat(r, precision)
 	if i >= 0 {
 		enc.buf.WriteByte('+')
 	}
 	enc.buf.WriteFloat(i, precision)
 	enc.buf.WriteByte('i')
-	enc.buf.WriteByte('"')
 }
 func (enc *textEncoder) AppendComplex64(v complex64)   { enc.appendComplex(complex128(v), 32) }
 func (enc *textEncoder) AppendComplex128(v complex128) { enc.appendComplex(complex128(v), 64) }

@@ -50,7 +50,7 @@ type Logger struct {
 func SetAsDefaultLogger() {
 	defaultLogger := newLogger("$$defaultLogger", LevelTrace, nil)
 	defaultLogger.isDefault = true
-	log.SetOutput(newWriter(defaultLogger))
+	log.SetOutput(newGlobalWriter(defaultLogger))
 	log.SetFlags(0)
 }
 
@@ -346,7 +346,7 @@ func (l *Logger) logDepth(depth int, ctx context.Context, level Level, msg strin
 		err, isError := args[arg].(error)
 
 		if isError {
-			l.includeStackTrace(depth+1, err, &record)
+			l.includeStackTrace(depth+1, &record)
 			record.Error = err
 		} else if l.shouldContainCaller() {
 			l.includeCaller(depth+1, &record)
@@ -412,7 +412,7 @@ func (l *Logger) includeCaller(depth int, record *Record) {
 	}
 }
 
-func (l *Logger) includeStackTrace(depth int, err error, record *Record) {
+func (l *Logger) includeStackTrace(depth int, record *Record) {
 	var (
 		buf []byte
 	)

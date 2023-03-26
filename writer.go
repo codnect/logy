@@ -107,19 +107,19 @@ func (sw *syslogWriter) Write(p []byte) (n int, err error) {
 	return sw.writer.Write(p)
 }
 
-type writer struct {
+type globalWriter struct {
 	logger *Logger
 	flags  int
 }
 
-func newWriter(logger *Logger) *writer {
-	return &writer{
+func newGlobalWriter(logger *Logger) *globalWriter {
+	return &globalWriter{
 		logger: logger,
 		flags:  log.Flags(),
 	}
 }
 
-func (w *writer) Write(buf []byte) (n int, err error) {
+func (w *globalWriter) Write(buf []byte) (n int, err error) {
 	if !w.logger.IsLoggable(LevelDebug) {
 		return 0, nil
 	}
