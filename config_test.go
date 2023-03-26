@@ -48,10 +48,10 @@ func TestLoadConfig(t *testing.T) {
 func TestLoadConfigFromYaml(t *testing.T) {
 	testConfig := &Config{
 		Level:         LevelAll,
-		IncludeCaller: false,
+		IncludeCaller: true,
 		Handlers:      Handlers{"testHandler", "console", "file"},
 		Console: &ConsoleConfig{
-			Enabled: true,
+			Enabled: false,
 			Target:  TargetStderr,
 			Format:  "%d %s%e%n",
 			Color:   true,
