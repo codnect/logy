@@ -47,10 +47,10 @@ type Logger struct {
 	mu sync.RWMutex
 }
 
-func SetAsDefaultLogger() {
-	defaultLogger := newLogger("$$defaultLogger", LevelTrace, nil)
-	defaultLogger.isDefault = true
-	log.SetOutput(newGlobalWriter(defaultLogger))
+func SetAsGlobalLogger() {
+	globalLogger := newLogger("$$globalLogger", LevelTrace, nil)
+	globalLogger.isDefault = true
+	log.SetOutput(newGlobalWriter(globalLogger))
 	log.SetFlags(0)
 }
 
