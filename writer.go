@@ -2,7 +2,6 @@ package logy
 
 import (
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -109,13 +108,11 @@ func (sw *syslogWriter) Write(p []byte) (n int, err error) {
 
 type globalWriter struct {
 	logger *Logger
-	flags  int
 }
 
 func newGlobalWriter(logger *Logger) *globalWriter {
 	return &globalWriter{
 		logger: logger,
-		flags:  log.Flags(),
 	}
 }
 
