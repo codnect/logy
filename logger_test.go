@@ -3,6 +3,7 @@ package logy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/stretchr/testify/mock"
 	"io"
 	"runtime"
@@ -86,7 +87,7 @@ func TestLogger_I(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     78,
+			line:     79,
 			function: "github.com/procyon-projects/logy.TestLogger_I",
 		},
 	})
@@ -113,11 +114,11 @@ func TestLogger_IWithStackTrace(t *testing.T) {
 		Context:    ctx,
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_IWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:107",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_IWithStackTrace()\\n    %s:108", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     107,
+			line:     108,
 			function: "github.com/procyon-projects/logy.TestLogger_IWithStackTrace",
 		},
 	})
@@ -145,7 +146,7 @@ func TestLogger_IWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     137,
+			line:     138,
 			function: "github.com/procyon-projects/logy.TestLogger_IWithArguments",
 		},
 	})
@@ -170,7 +171,7 @@ func TestLogger_Info(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     163,
+			line:     164,
 			function: "github.com/procyon-projects/logy.TestLogger_Info",
 		},
 	})
@@ -194,11 +195,11 @@ func TestLogger_InfoWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_InfoWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:189",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_InfoWithStackTrace()\\n    %s:190", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     189,
+			line:     190,
 			function: "github.com/procyon-projects/logy.TestLogger_InfoWithStackTrace",
 		},
 	})
@@ -223,7 +224,7 @@ func TestLogger_InfoWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     216,
+			line:     217,
 			function: "github.com/procyon-projects/logy.TestLogger_InfoWithArguments",
 		},
 	})
@@ -251,7 +252,7 @@ func TestLogger_D(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     243,
+			line:     244,
 			function: "github.com/procyon-projects/logy.TestLogger_D",
 		},
 	})
@@ -278,11 +279,11 @@ func TestLogger_DWithStackTrace(t *testing.T) {
 		Context:    ctx,
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_DWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:272",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_DWithStackTrace()\\n    %s:273", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     272,
+			line:     273,
 			function: "github.com/procyon-projects/logy.TestLogger_DWithStackTrace",
 		},
 	})
@@ -310,7 +311,7 @@ func TestLogger_DWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     302,
+			line:     303,
 			function: "github.com/procyon-projects/logy.TestLogger_DWithArguments",
 		},
 	})
@@ -335,7 +336,7 @@ func TestLogger_Debug(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     328,
+			line:     329,
 			function: "github.com/procyon-projects/logy.TestLogger_Debug",
 		},
 	})
@@ -359,11 +360,11 @@ func TestLogger_DebugWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_DebugWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:354",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_DebugWithStackTrace()\\n    %s:355", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     354,
+			line:     355,
 			function: "github.com/procyon-projects/logy.TestLogger_DebugWithStackTrace",
 		},
 	})
@@ -388,7 +389,7 @@ func TestLogger_DebugWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     381,
+			line:     382,
 			function: "github.com/procyon-projects/logy.TestLogger_DebugWithArguments",
 		},
 	})
@@ -416,7 +417,7 @@ func TestLogger_T(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     408,
+			line:     409,
 			function: "github.com/procyon-projects/logy.TestLogger_T",
 		},
 	})
@@ -443,11 +444,11 @@ func TestLogger_TWithStackTrace(t *testing.T) {
 		Context:    ctx,
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_TWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:437",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_TWithStackTrace()\\n    %s:438", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     437,
+			line:     438,
 			function: "github.com/procyon-projects/logy.TestLogger_TWithStackTrace",
 		},
 	})
@@ -475,7 +476,7 @@ func TestLogger_TWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     467,
+			line:     468,
 			function: "github.com/procyon-projects/logy.TestLogger_TWithArguments",
 		},
 	})
@@ -500,7 +501,7 @@ func TestLogger_Trace(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     493,
+			line:     494,
 			function: "github.com/procyon-projects/logy.TestLogger_Trace",
 		},
 	})
@@ -524,11 +525,11 @@ func TestLogger_TraceWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_TraceWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:519",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_TraceWithStackTrace()\\n    %s:520", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     519,
+			line:     520,
 			function: "github.com/procyon-projects/logy.TestLogger_TraceWithStackTrace",
 		},
 	})
@@ -553,7 +554,7 @@ func TestLogger_TraceWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     546,
+			line:     547,
 			function: "github.com/procyon-projects/logy.TestLogger_TraceWithArguments",
 		},
 	})
@@ -581,7 +582,7 @@ func TestLogger_E(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     573,
+			line:     574,
 			function: "github.com/procyon-projects/logy.TestLogger_E",
 		},
 	})
@@ -608,11 +609,11 @@ func TestLogger_EWithStackTrace(t *testing.T) {
 		Context:    ctx,
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_EWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:602",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_EWithStackTrace()\\n    %s:603", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     602,
+			line:     603,
 			function: "github.com/procyon-projects/logy.TestLogger_EWithStackTrace",
 		},
 	})
@@ -640,7 +641,7 @@ func TestLogger_EWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     632,
+			line:     633,
 			function: "github.com/procyon-projects/logy.TestLogger_EWithArguments",
 		},
 	})
@@ -665,7 +666,7 @@ func TestLogger_Error(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     658,
+			line:     659,
 			function: "github.com/procyon-projects/logy.TestLogger_Error",
 		},
 	})
@@ -689,11 +690,11 @@ func TestLogger_ErrorWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_ErrorWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:684",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_ErrorWithStackTrace()\\n    %s:685", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     684,
+			line:     685,
 			function: "github.com/procyon-projects/logy.TestLogger_ErrorWithStackTrace",
 		},
 	})
@@ -718,7 +719,7 @@ func TestLogger_ErrorWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     711,
+			line:     712,
 			function: "github.com/procyon-projects/logy.TestLogger_ErrorWithArguments",
 		},
 	})
@@ -746,7 +747,7 @@ func TestLogger_W(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     738,
+			line:     739,
 			function: "github.com/procyon-projects/logy.TestLogger_W",
 		},
 	})
@@ -773,11 +774,11 @@ func TestLogger_WWithStackTrace(t *testing.T) {
 		Context:    ctx,
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_WWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:767",
+		StackTrace: fmt.Sprintf("github.com/procyon-projects/logy.TestLogger_WWithStackTrace()\\n    %s:768", filename),
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     767,
+			line:     768,
 			function: "github.com/procyon-projects/logy.TestLogger_WWithStackTrace",
 		},
 	})
@@ -805,7 +806,7 @@ func TestLogger_WWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     797,
+			line:     798,
 			function: "github.com/procyon-projects/logy.TestLogger_WWithArguments",
 		},
 	})
@@ -830,7 +831,7 @@ func TestLogger_Warn(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     823,
+			line:     824,
 			function: "github.com/procyon-projects/logy.TestLogger_Warn",
 		},
 	})
@@ -855,7 +856,7 @@ func TestLogger_WarnWithArguments(t *testing.T) {
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     848,
+			line:     849,
 			function: "github.com/procyon-projects/logy.TestLogger_WarnWithArguments",
 		},
 	})
@@ -879,11 +880,11 @@ func TestLogger_WarnWithStackTrace(t *testing.T) {
 		Message:    "anyMessage",
 		LoggerName: "anyLogger",
 		Error:      err,
-		StackTrace: "github.com/procyon-projects/logy.TestLogger_WarnWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:874",
+		StackTrace: "github.com/procyon-projects/logy.TestLogger_WarnWithStackTrace()\\n    /Users/burakkoken/GolandProjects/slog/logger_test.go:875",
 		Caller: Caller{
 			defined:  true,
 			file:     filename,
-			line:     874,
+			line:     875,
 			function: "github.com/procyon-projects/logy.TestLogger_WarnWithStackTrace",
 		},
 	})
