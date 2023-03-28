@@ -69,41 +69,41 @@ These methods accept the context as the first argument, followed by the log mess
 package main
 
 import (
-	"context"
-	"github.com/procyon-projects/logy"
+    "context"
+    "github.com/procyon-projects/logy"
 )
 
 func main() {
-	// logy.Get() creates a logger with the name of the package it is called from
-	log := logy.Get()
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
 
-	// Change console log format
-	err := logy.LoadConfig(&logy.Config{
-		Console: &logy.ConsoleConfig{
-			Enabled: true,
-			Format:  "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p %c : %s%e%n",
-			Color:   true,
-		},
-	})
+    // Change console log format
+    err := logy.LoadConfig(&logy.Config{
+        Console: &logy.ConsoleConfig{
+            Enabled: true,
+            Format:  "%d{2006-01-02 15:04:05.000} %l [%x{traceId},%x{spanId}] %p %c : %s%e%n",
+            Color:   true,
+        },
+    })
 
-	if err != nil {
-		panic(err)
-	}
+    if err != nil {
+        panic(err)
+    }
 
-	// logy.WithValue() returns a new context with the given field and copies any 
-	// existing contextual fields if they exist.
-	// This ensures that the original context is not modified and avoids any potential 
-	// issues.
-	ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
-	// It will create a new context with the spanId and copies the existing fields
-	ctx = logy.WithValue(ctx, "spanId", "anySpanId")
+    // logy.WithValue() returns a new context with the given field and copies any 
+    // existing contextual fields if they exist.
+    // This ensures that the original context is not modified and avoids any potential 
+    // issues.
+    ctx := logy.WithValue(context.Background(), "traceId", "anyTraceId")
+    // It will create a new context with the spanId and copies the existing fields
+    ctx = logy.WithValue(ctx, "spanId", "anySpanId")
 
-	// Logging messages with contextual fields
-	log.I(ctx, "info message")
-	log.W(ctx, "warning message")
-	log.E(ctx, "error message")
-	log.D(ctx, "debug message")
-	log.T(ctx, "trace message")
+    // Logging messages with contextual fields
+    log.I(ctx, "info message")
+    log.W(ctx, "warning message")
+    log.E(ctx, "error message")
+    log.D(ctx, "debug message")
+    log.T(ctx, "trace message")
 }
 ```
 
@@ -145,6 +145,16 @@ The output of the above code execution looks as follows:
 
 ```bash
 2023-03-19 21:13:06.029186  INFO github.com/procyon-projects/logy/test    : The value 30 should be between 128 and 256
+```
+
+### Setting Logy As Default Logger
+
+`SetAsDefaultLogger` sets **logy** as default logger, so that existing applications that use `log.Printf` and related functions
+will send log records to **logy's handlers.**
+
+Here is the way of how to set **logy** as default logger:
+```go
+logy.SetAsDefaultLogger()
 ```
 
 ### JSON Logging Format
@@ -653,6 +663,8 @@ Here is the benchmark results.
 | log15                   | 12532 ns/op  |   130 allocs/op   |
 | apex/log                | 14494 ns/op  |   53 allocs/op    |
 | logrus                  | 16246 ns/op  |   68 allocs/op    |
+
+See [logy-benchmarks](https://github.com/procyon-projects/logy-benchmarks) for more comprehensive and up-to-date benchmarks.
 
 Stargazers
 -----------

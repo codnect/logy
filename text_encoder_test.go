@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"log"
 	"testing"
 	"time"
 )
@@ -469,8 +468,7 @@ func TestTextEncoder_AppendAny(t *testing.T) {
 
 	encoder := getTextEncoder(newBuffer())
 
-	for index, testCase := range testCases {
-		log.Printf("index : %d", index)
+	for _, testCase := range testCases {
 		encoder.buf.Reset()
 		encoder.AppendAny(testCase.Value)
 		assert.Equal(t, testCase.Expected, encoder.buf.String())
