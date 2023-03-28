@@ -120,3 +120,71 @@ func TestIterator_Next(t *testing.T) {
 
 	assert.Equal(t, expectedFields, fields)
 }
+
+func TestWithValue_ShouldOverrideFieldIfItAlreadyExists(t *testing.T) {
+	ctx := WithValue(context.Background(), "anyKey", "anyValue")
+
+	expectedFields := []Field{
+		{
+			key:       "anyKey",
+			value:     "anyValue",
+			textValue: "anyValue",
+			jsonValue: "{\"anyKey\":\"anyValue\"}",
+		},
+	}
+
+	fields := make([]Field, 0)
+	iterator := Values(ctx)
+	for {
+		field, next := iterator.Next()
+		if !next {
+			break
+		}
+		fields = append(fields, field)
+	}
+
+	assert.Equal(t, expectedFields, fields)
+
+	cloneContext := WithValue(ctx, "anyKey", "anotherValue")
+
+	expectedFields = []Field{
+		{
+			key:       "anyKey",
+			value:     "anotherValue",
+			textValue: "anotherValue",
+			jsonValue: "{\"anyKey\":\"anotherValue\"}",
+		},
+	}
+
+	fields = make([]Field, 0)
+	iterator = Values(cloneContext)
+	for {
+		field, next := iterator.Next()
+		if !next {
+			break
+		}
+		fields = append(fields, field)
+	}
+
+	assert.Equal(t, expectedFields, fields)
+}
+
+func TestContextFieldsFrom_ShouldReturnNilIfContextIsNil(t *testing.T) {
+	assert.Nil(t, ContextFieldsFrom(nil))
+}
+
+func TestWithValue_ShouldPanicIfParentContextIsNil(t *testing.T) {
+	assert.Panics(t, func() {
+		WithValue(nil, "", "")
+	})
+}
+
+func TestValues_ShouldPanicIfContextIsNil(t *testing.T) {
+	assert.Panics(t, func() {
+		Values(nil)
+	})
+}
+
+func TestValues_ShouldReturnDefaultIteratorIfContextDoesNotIncludeContextFields(t *testing.T) {
+	assert.Equal(t, defaultIterator, Values(context.Background()))
+}
