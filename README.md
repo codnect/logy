@@ -35,20 +35,20 @@ Here's an example of how to use Logy:
 package main
 
 import (
-	"context"
-	"github.com/procyon-projects/logy"
+    "context"
+    "github.com/procyon-projects/logy"
 )
 
 func main() {
-	// logy.Get() creates a logger with the name of the package it is called from
-	log := logy.Get()
+    // logy.Get() creates a logger with the name of the package it is called from
+    log := logy.Get()
 
-	// Logging messages with different log levels
-	log.Info("This is an information message")
-	log.Warn("This is a warning message")
-	log.Error("This is an error message")
-	log.Debug("This is a debug message")
-	log.Trace("This is a trace message")
+    // Logging messages with different log levels
+    log.Info("This is an information message")
+    log.Warn("This is a warning message")
+    log.Error("This is an error message")
+    log.Debug("This is a debug message")
+    log.Trace("This is a trace message")
 }
 ```
 
@@ -565,7 +565,7 @@ logy:
     level: DEBUG
 ```
 
-*Console JSON Logging Configuration*
+*Console YAML Logging Configuration*
 
 ```yaml
 logy:
@@ -602,7 +602,7 @@ logy:
     path: /var
 ```
 
-*File JSON Logging Configuration*
+*File YAML Logging Configuration*
 
 ```yaml
 logy:
