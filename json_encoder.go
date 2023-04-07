@@ -321,7 +321,7 @@ func (enc *jsonEncoder) AppendAny(val any) error {
 		} else {
 			rValue := reflect.ValueOf(typed)
 			if rValue.Kind() == reflect.Pointer {
-				return enc.AppendAny(rValue.Interface())
+				return enc.AppendAny(rValue.Elem())
 			} else if rValue.Kind() == reflect.Map {
 				enc.appendMap(&rValue)
 			} else if rValue.Kind() == reflect.Array || rValue.Kind() == reflect.Slice {
