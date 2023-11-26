@@ -1,6 +1,6 @@
 ![Logy logo](https://user-images.githubusercontent.com/5354910/224152840-2c913efa-f7c3-41ea-b0cc-a215a7ec02cf.png)
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/procyon-projects/logy)](https://goreportcard.com/report/github.com/procyon-projects/logy)
+[![Go Report Card](https://goreportcard.com/badge/codnect.io/logy)](https://goreportcard.com/report/codnect.io/logy)
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/procyon-projects/logy/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/procyon-projects/logy/tree/main)
 [![codecov](https://codecov.io/gh/procyon-projects/logy/branch/main/graph/badge.svg?token=zDm2iL6XLM)](https://codecov.io/gh/procyon-projects/logy)
 
@@ -16,13 +16,13 @@ handlers, and hierarchically named loggers.
 To use Logy in your Go project, you need to first install it using the following command:
 
 ```bash
-go get -u github.com/procyon-projects/logy
+go get -u codnect.io/logy
 ```
 
 After installing Logy, you can import it in your Go code like this:
 
 ```go
-import "github.com/procyon-projects/logy"
+import "codnect.io/logy"
 ```
 
 Once you've imported Logy, you can start using it to log messages.
@@ -36,7 +36,7 @@ package main
 
 import (
     "context"
-    "github.com/procyon-projects/logy"
+    "codnect.io/logy"
 )
 
 func main() {
@@ -70,7 +70,7 @@ package main
 
 import (
     "context"
-    "github.com/procyon-projects/logy"
+    "codnect.io/logy"
 )
 
 func main() {
@@ -128,7 +128,7 @@ package main
 
 import (
     "context"
-    "github.com/procyon-projects/logy"
+    "codnect.io/logy"
 )
 
 func main() {
@@ -144,7 +144,7 @@ func main() {
 The output of the above code execution looks as follows:
 
 ```bash
-2023-03-19 21:13:06.029186  INFO github.com/procyon-projects/logy/test    : The value 30 should be between 128 and 256
+2023-03-19 21:13:06.029186  INFO codnect.io/logy/test    : The value 30 should be between 128 and 256
 ```
 
 ### Setting Logy As Default Logger
@@ -166,7 +166,7 @@ package main
 
 import (
     "context"
-    "github.com/procyon-projects/logy"
+    "codnect.io/logy"
 )
 
 func main() {
@@ -204,8 +204,8 @@ func main() {
 The output of the above code execution looks as follows:
 
 ```bash
-{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"github.com/procyon-projects/logy/test","message":"This is an information message"}
-{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"github.com/procyon-projects/logy/test","message":"info message","mappedContext":{"traceId":"anyTraceId","spanId":"anySpanId"}}
+{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"codnect.io/logy/test","message":"This is an information message"}
+{"timestamp":"2023-03-20T20:59:02+03:00","level":"INFO","logger":"codnect.io/logy/test","message":"info message","mappedContext":{"traceId":"anyTraceId","spanId":"anySpanId"}}
 ```
 
 ### Error and Stack Trace Logging
@@ -219,7 +219,7 @@ package main
 import (
     "context"
     "errors"
-    "github.com/procyon-projects/logy"
+    "codnect.io/logy"
 )
 
 func main() {
@@ -242,23 +242,23 @@ func main() {
 The output of the above code execution looks as follows:
 
 ```bash
-2023-03-20 21:17:03.165347  INFO github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+2023-03-20 21:17:03.165347  INFO codnect.io/logy/test    : The value anyValue was not inserted
 Error: an error occurred
 main.main()
     /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:19
-2023-03-20 21:17:03.165428  WARN github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+2023-03-20 21:17:03.165428  WARN codnect.io/logy/test    : The value anyValue was not inserted
 Error: an error occurred
 main.main()
     /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:20
-2023-03-20 21:17:03.165434 ERROR github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+2023-03-20 21:17:03.165434 ERROR codnect.io/logy/test    : The value anyValue was not inserted
 Error: an error occurred
 main.main()
     /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:21
-2023-03-20 21:17:03.165438 DEBUG github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+2023-03-20 21:17:03.165438 DEBUG codnect.io/logy/test    : The value anyValue was not inserted
 Error: an error occurred
 main.main()
     /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:22
-2023-03-20 21:17:03.165441 ERROR github.com/procyon-projects/logy/test    : The value anyValue was not inserted
+2023-03-20 21:17:03.165441 ERROR codnect.io/logy/test    : The value anyValue was not inserted
 Error: an error occurred
 main.main()
     /Users/burakkoken/GolandProjects/procyon-projects/logy/test/main.go:23
@@ -270,7 +270,7 @@ A Logger instance is used to log messages for an application. Loggers are named,
 using a hierarchical dot and slash separated namespace.
 
 For example, the logger named `github.com/procyon-projects` is a parent of the logger
-named `github.com/procyon-projects/logy`.
+named `codnect.io/logy`.
 Similarly, `net` is a parent of `net/http` and an ancestor of `net/http/cookiejar`
 
 Logger names can be arbitrary strings, however it's recommended that they are based on the package name or struct name
@@ -288,8 +288,8 @@ which creates a named logger with the name of the package it is called from:
 log := logy.Get()
 ```
 
-For example, a logger created in the `github.com/procyon-projects/logy` package would have the
-name `github.com/procyon-projects/logy`.
+For example, a logger created in the `codnect.io/logy` package would have the
+name `codnect.io/logy`.
 
 Alternatively, you can use the `logy.Named()` function to create a named logger with a specific name:
 
@@ -664,16 +664,16 @@ Here is the benchmark results.
 | apex/log                | 14494 ns/op  |   53 allocs/op    |
 | logrus                  | 16246 ns/op  |   68 allocs/op    |
 
-See [logy-benchmarks](https://github.com/procyon-projects/logy-benchmarks) for more comprehensive and up-to-date benchmarks.
+See [logy-benchmarks](https://codnect.io/logy-benchmarks) for more comprehensive and up-to-date benchmarks.
 
 Stargazers
 -----------
-[![Stargazers repo roster for @procyon-projects/logy](https://reporoster.com/stars/procyon-projects/logy)](https://github.com/procyon-projects/logy/stargazers)
+[![Stargazers repo roster for @procyon-projects/logy](https://reporoster.com/stars/procyon-projects/logy)](https://codnect.io/logy/stargazers)
 
 Forkers
 -----------
-[![Forkers repo roster for @procyon-projects/logy](https://reporoster.com/forks/procyon-projects/logy)](https://github.com/procyon-projects/logy/network/members)
+[![Forkers repo roster for @procyon-projects/logy](https://reporoster.com/forks/procyon-projects/logy)](https://codnect.io/logy/network/members)
 
 # License
 
-Logy is released under [MIT License](https://github.com/procyon-projects/logy/blob/main/LICENSE).
+Logy is released under [MIT License](https://codnect.io/logy/blob/main/LICENSE).

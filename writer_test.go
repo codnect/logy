@@ -164,14 +164,14 @@ func TestGlobalWriter_Write(t *testing.T) {
 		Level:      LevelDebug,
 		Message:    fmt.Sprintf("%s", "anyMessage"),
 		Context:    nil,
-		LoggerName: "github.com/procyon-projects/logy",
+		LoggerName: "codnect.io/logy",
 		StackTrace: "",
 		Error:      nil,
 		Caller: Caller{
 			defined:  true,
 			file:     writerTestFilename,
 			line:     160,
-			function: "github.com/procyon-projects/logy.TestGlobalWriter_Write",
+			function: "codnect.io/logy.TestGlobalWriter_Write",
 		},
 	})
 }

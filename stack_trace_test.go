@@ -26,7 +26,7 @@ func TestCaptureFirstStacktrace(t *testing.T) {
 		formatFrame(&buf, i, frame)
 	}
 
-	assert.Equal(t, fmt.Sprintf("github.com/procyon-projects/logy.TestCaptureFirstStacktrace()\\n    %s:19", stackTraceFilename), string(buf))
+	assert.Equal(t, fmt.Sprintf("codnect.io/logy.TestCaptureFirstStacktrace()\\n    %s:19", stackTraceFilename), string(buf))
 }
 
 func TestCaptureFullStacktrace(t *testing.T) {
@@ -44,5 +44,5 @@ func TestCaptureFullStacktrace(t *testing.T) {
 		formatFrame(&buf, i, frame)
 	}
 
-	assert.Equal(t, fmt.Sprintf("github.com/procyon-projects/logy.TestCaptureFullStacktrace()\\n    %s:37", stackTraceFilename), string(buf))
+	assert.Equal(t, fmt.Sprintf("codnect.io/logy.TestCaptureFullStacktrace()\\n    %s:37", stackTraceFilename), string(buf))
 }

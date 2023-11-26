@@ -1,4 +1,4 @@
-module github.com/procyon-projects/logy
+module codnect.io/logy
 
 go 1.19
 
