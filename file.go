@@ -43,7 +43,7 @@ func (h *FileHandler) FilePath() string {
 
 func (h *FileHandler) createLogFile(dir, name string) (*os.File, error) {
 	path := filepath.FromSlash(filepath.Join(dir, name))
-	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0755)
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
 }
 
 func (h *FileHandler) OnConfigure(config Config) error {
@@ -63,7 +63,7 @@ func (h *FileHandler) OnConfigure(config Config) error {
 
 	discarded := false
 
-	if !underTest {
+	if !underTest && h.IsEnabled() {
 		file, err = h.createLogFile(config.File.Path, config.File.Name)
 		if err != nil {
 			h.SetEnabled(false)
